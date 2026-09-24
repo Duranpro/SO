@@ -13,9 +13,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define MIDA_LINIA 256
-
-int llegirLinia(int fd, char *buffer, int mida);
+char *llegirLinia(int fd);
 int copiarText(char **desti, char *origen);
 
 #endif

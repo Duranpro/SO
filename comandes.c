@@ -33,38 +33,6 @@ int escriureMissatge(char *text) {
 
 /***********************************************
  *
- * @Finalitat: Llegeix una comanda completa des de l'entrada estandard.
- * @Parametres: out: buffer = espai on es guarda la comanda.
- *              in: mida = capacitat del buffer.
- * @Retorn: Retorna 1 si llegeix una comanda, 0 si arriba a EOF i -1 si falla.
- *
- ************************************************/
-int llegirComanda(char *buffer, int mida) {
-    int posicio = 0, bytes_llegits = 0, final_linia = 0;
-    char caracter = '\0';
-
-    while (final_linia == 0) {
-        bytes_llegits = read(0, &caracter, 1);
-        if (bytes_llegits < 0) {
-            return -1;
-        }
-        if (bytes_llegits == 0 || caracter == '\n') {
-            final_linia = 1;
-        } else if (caracter != '\r' && posicio < mida - 1) {
-            buffer[posicio] = caracter;
-            posicio++;
-        }
-    }
-
-    buffer[posicio] = '\0';
-    if (bytes_llegits == 0 && posicio == 0) {
-        return 0;
-    }
-    return 1;
-}
-
-/***********************************************
- *
  * @Finalitat: Comprova si un text conte nomes digits.
  * @Parametres: in: text = text que es vol comprovar.
  * @Retorn: Retorna 1 si es un numero i 0 altrament.
@@ -83,28 +51,6 @@ int esNumero(char *text) {
         i++;
     }
     return 1;
-}
-
-/***********************************************
- *
- * @Finalitat: Separa una linia en paraules utilitzant espais i tabuladors.
- * @Parametres: in/out: linia = linia que es vol separar.
- *              out: paraules = punters a les paraules trobades.
- *              in: maxim = nombre maxim de paraules que es guarden.
- * @Retorn: Retorna el nombre de paraules guardades.
- *
- ************************************************/
-int separarParaules(char *linia, char *paraules[], int maxim) {
-    int nombre_paraules = 0;
-    char *paraula = NULL;
-
-    paraula = strtok(linia, " ");
-    while (paraula != NULL && nombre_paraules < maxim) {
-        paraules[nombre_paraules] = paraula;
-        nombre_paraules++;
-        paraula = strtok(NULL, " ");
-    }
-    return nombre_paraules;
 }
 
 /***********************************************
@@ -187,7 +133,7 @@ int analitzarAcceptacio(char *paraules[], int nombre_paraules, Comanda *comanda)
 int analitzarNavegacio(char *paraules[], int nombre_paraules, Comanda *comanda) {
     comanda->tipus = COMANDA_SAIL;
     if (nombre_paraules == 2) {
-        strcpy(comanda->argument, paraules[1]);
+        comanda->argument = paraules[1];
         return RESULTAT_CORRECTE;
     }
     return RESULTAT_SINTAXI_INCORRECTA;
@@ -210,7 +156,7 @@ int analitzarCompraVenda(char *paraules[], int nombre_paraules, int tipus, Coman
     if (nombre_paraules == 3 && esNumero(paraules[2]) == 1) {
         quantitat = atoi(paraules[2]);
         if (quantitat > 0) {
-            strcpy(comanda->argument, paraules[1]);
+            comanda->argument = paraules[1];
             comanda->valor = quantitat;
             return RESULTAT_CORRECTE;
         }
@@ -244,13 +190,19 @@ int analitzarSenseArguments(int nombre_paraules, int tipus, Comanda *comanda) {
  *
  ************************************************/
 int analitzarComanda(char *linia, Comanda *comanda) {
-    char *paraules[MAX_PARAULES] = {NULL};
+    char *paraules[MAX_PARAULES] = {NULL}, *paraula = NULL;
     int nombre_paraules = 0;
 
     comanda->tipus = COMANDA_DESCONEGUDA;
-    comanda->argument[0] = '\0';
+    comanda->argument = NULL;
     comanda->valor = 0;
-    nombre_paraules = separarParaules(linia, paraules, MAX_PARAULES);
+
+    paraula = strtok(linia, " ");
+    while (paraula != NULL && nombre_paraules < MAX_PARAULES) {
+        paraules[nombre_paraules] = paraula;
+        nombre_paraules++;
+        paraula = strtok(NULL, " ");
+    }
 
     if (nombre_paraules == 0) {
         return RESULTAT_DESCONEGUDA;
@@ -367,26 +319,27 @@ int mostrarResultatComanda(int resultat, int tipus) {
  ************************************************/
 int executarTerminal(int *finalitzar_programa) {
     Comanda comanda = {0};
-    int resultat_lectura = 0, resultat_analisi = 0;
-    int finalitzat = 0;
-    char linia[MIDA_LINIA];
+    int resultat_analisi = 0, finalitzat = 0;
+    char *linia = NULL;
 
     while (finalitzat == 0 && *finalitzar_programa == 0) {
         if (escriureMissatge("$ ") != 0) {
             return -1;
         }
-        resultat_lectura = llegirComanda(linia, MIDA_LINIA);
+        linia = llegirLinia(0);
 
-        if (*finalitzar_programa != 0 || resultat_lectura == 0) {
+        if (*finalitzar_programa != 0 || linia == NULL) {
             finalitzat = 1;
-        } else if (resultat_lectura < 0) {
-            return -1;
         } else {
             resultat_analisi = analitzarComanda(linia, &comanda);
             if (mostrarResultatComanda(resultat_analisi, comanda.tipus) != 0) {
+                free(linia);
                 return -1;
             }
         }
+        free(linia);
+        linia = NULL;
+        comanda.argument = NULL;
     }
     return 0;
 }

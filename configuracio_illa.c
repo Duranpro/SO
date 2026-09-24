@@ -23,7 +23,7 @@ int afegirRuta(char *linia, ConfiguracioIlla *configuracio) {
     Ruta *rutes_ampliades = NULL, *ruta = NULL;
     char *camp = NULL;
 
-    rutes_ampliades = realloc(configuracio->rutes, (configuracio->nombre_rutes + 1) * sizeof(Ruta));
+    rutes_ampliades = realloc(configuracio->rutes,(configuracio->nombre_rutes + 1) * sizeof(*rutes_ampliades));
     if (rutes_ampliades == NULL) {
         return -1;
     }
@@ -53,32 +53,6 @@ int afegirRuta(char *linia, ConfiguracioIlla *configuracio) {
 
 /***********************************************
  *
- * @Finalitat: Llegeix les rutes fins arribar al final del fitxer.
- * @Parametres: in: fd = descriptor del fitxer de configuracio.
- *              in/out: configuracio = configuracio de l'illa.
- * @Retorn: Retorna 0 si es carreguen les rutes i -1 si hi ha un error.
- *
- ************************************************/
-int carregarRutes(int fd, ConfiguracioIlla *configuracio) {
-    int resultat = 0;
-    char linia[MIDA_LINIA];
-
-    resultat = llegirLinia(fd, linia, MIDA_LINIA);
-    while (resultat == 1) {
-        resultat = afegirRuta(linia, configuracio);
-        if (resultat == 0) {
-            resultat = llegirLinia(fd, linia, MIDA_LINIA);
-        }
-    }
-
-    if (resultat == 0) {
-        return 0;
-    }
-    return -1;
-}
-
-/***********************************************
- *
  * @Finalitat: Carrega el fitxer de configuracio d'una illa.
  * @Parametres: in: nom_fitxer = ruta del fitxer de configuracio.
  *              out: configuracio = configuracio carregada.
@@ -87,7 +61,7 @@ int carregarRutes(int fd, ConfiguracioIlla *configuracio) {
  ************************************************/
 int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
     int fd = -1, resultat = 0, caracters_escrits = 0;
-    char linia[MIDA_LINIA], *camp = NULL, *missatge = NULL;
+    char *linia = NULL, *camp = NULL, *missatge = NULL;
 
     fd = open(nom_fitxer, O_RDONLY);
     if (fd < 0) {
@@ -99,42 +73,77 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
         return -1;
     }
 
-    if (llegirLinia(fd, linia, MIDA_LINIA) != 1 ||copiarText(&configuracio->nom, linia) != 0) {
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
         resultat = -1;
+    } else {
+        resultat = copiarText(&configuracio->nom, linia);
     }
-    if (resultat == 0 &&
-        (llegirLinia(fd, linia, MIDA_LINIA) != 1 || copiarText(&configuracio->ruta_carpeta, linia) != 0)) {
-        resultat = -1;
-    }
-    if (resultat == 0 && llegirLinia(fd, linia, MIDA_LINIA) == 1) {
-        camp = strtok(linia, " ");
-        if (camp == NULL || copiarText(&configuracio->ip, camp) != 0) {
+    free(linia);
+    linia = NULL;
+
+    if (resultat == 0) {
+        linia = llegirLinia(fd);
+        if (linia == NULL) {
             resultat = -1;
         } else {
-            camp = strtok(NULL, " ");
-            if (camp == NULL) {
+            resultat = copiarText(&configuracio->ruta_carpeta, linia);
+        }
+        free(linia);
+        linia = NULL;
+    }
+
+    if (resultat == 0) {
+        linia = llegirLinia(fd);
+        if (linia == NULL) {
+            resultat = -1;
+        } else {
+            camp = strtok(linia, " ");
+            if (camp == NULL || copiarText(&configuracio->ip, camp) != 0) {
                 resultat = -1;
             } else {
-                configuracio->port = atoi(camp);
+                camp = strtok(NULL, " ");
+                if (camp == NULL) {
+                    resultat = -1;
+                } else {
+                    configuracio->port = atoi(camp);
+                }
             }
         }
-    } else if (resultat == 0) {
-        resultat = -1;
+        free(linia);
+        linia = NULL;
     }
-    if (resultat == 0 && llegirLinia(fd, linia, MIDA_LINIA) == 1) {
-        configuracio->capacitat_port = atoi(linia);
-    } else if (resultat == 0) {
-        resultat = -1;
-    }
-    if (resultat == 0 && llegirLinia(fd, linia, MIDA_LINIA) == 1) {
-        if (strcmp(linia, "--- ROUTES ---") != 0) {
+
+    if (resultat == 0) {
+        linia = llegirLinia(fd);
+        if (linia != NULL) {
+            configuracio->capacitat_port = atoi(linia);
+        } else {
             resultat = -1;
         }
-    } else if (resultat == 0) {
-        resultat = -1;
+        free(linia);
+        linia = NULL;
+    }
+
+    if (resultat == 0) {
+        linia = llegirLinia(fd);
+        if (linia == NULL || strcmp(linia, "--- ROUTES ---") != 0) {
+            resultat = -1;
+        }
+        free(linia);
+        linia = NULL;
     }
     if (resultat == 0) {
-        resultat = carregarRutes(fd, configuracio);
+        linia = llegirLinia(fd);
+        while (linia != NULL && resultat == 0) {
+            resultat = afegirRuta(linia, configuracio);
+            free(linia);
+            linia = NULL;
+            if (resultat == 0) {
+                linia = llegirLinia(fd);
+            }
+        }
+        free(linia);
     }
     close(fd);
 
@@ -223,7 +232,7 @@ int validarRutes(ConfiguracioIlla *configuracio) {
     illa_sphragis.name = configuracio->nom;
     illa_sphragis.known_island_count = nombre_original;
     if (nombre_original > 0) {
-        illa_sphragis.known_islands = malloc(nombre_original * sizeof(char *));
+        illa_sphragis.known_islands = malloc(nombre_original * sizeof(*illa_sphragis.known_islands));
         if (illa_sphragis.known_islands == NULL) {
             resultat = -1;
         }
@@ -265,7 +274,7 @@ int validarRutes(ConfiguracioIlla *configuracio) {
  ************************************************/
 int carregarStock(char *nom_fitxer, ConfiguracioIlla *configuracio) {
     Producte producte = {0}, *productes_ampliats = NULL;
-    int fd = -1, bytes_llegits = 0, mida_producte = sizeof(Producte);
+    int fd = -1, bytes_llegits = 0, mida_producte = sizeof(producte);
     int resultat = 0, caracters_escrits = 0;
     char *missatge = NULL;
 
@@ -281,7 +290,7 @@ int carregarStock(char *nom_fitxer, ConfiguracioIlla *configuracio) {
 
     bytes_llegits = read(fd, &producte, mida_producte);
     while (bytes_llegits == mida_producte && resultat == 0) {
-        productes_ampliats = realloc(configuracio->productes, (configuracio->nombre_productes + 1) * sizeof(Producte));
+        productes_ampliats = realloc(configuracio->productes,(configuracio->nombre_productes + 1) *sizeof(*productes_ampliats));
         if (productes_ampliats == NULL) {
             resultat = -1;
         } else {

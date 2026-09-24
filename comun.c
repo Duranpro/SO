@@ -13,35 +13,43 @@
  *
  * @Finalitat: Llegeix una linia d'un descriptor de fitxer.
  * @Parametres: in: fd = descriptor del fitxer.
- *              out: buffer = espai on es guarda la linia.
- *              in: mida = capacitat del buffer.
- * @Retorn: Retorna 1 si llegeix una linia, 0 si arriba al final i -1 si falla.
+ * @Retorn: Retorna la linia reservada dinamicament o NULL si no pot llegir-la.
  *
  ************************************************/
-int llegirLinia(int fd, char *buffer, int mida) {
-    int posicio = 0, bytes_llegits = 0, final_linia = 0;
+char *llegirLinia(int fd) {
+    char *text = NULL, *temporal = NULL;
     char caracter = '\0';
+    int longitud = 0, bytes_llegits = 0;
 
-    while (posicio < mida - 1 && final_linia == 0) {
+    text = malloc(sizeof(*text));
+    if (text == NULL) {
+        return NULL;
+    }
+    text[0] = '\0';
+
+    while (1) {
         bytes_llegits = read(fd, &caracter, 1);
-        if (bytes_llegits < 0) {
-            return -1;
+        if (bytes_llegits <= 0) {
+            free(text);
+            return NULL;
+        }
+        if (caracter == '\n') {
+            break;
         }
 
-        if (bytes_llegits == 0 || caracter == '\n') {
-            final_linia = 1;
-        } else if (caracter != '\r') {
-            buffer[posicio] = caracter;
-            posicio++;
+        temporal = realloc(text, (longitud + 2) * sizeof(*temporal));
+        if (temporal == NULL) {
+            free(text);
+            return NULL;
         }
+
+        text = temporal;
+        text[longitud] = caracter;
+        longitud++;
+        text[longitud] = '\0';
     }
 
-    buffer[posicio] = '\0';
-    if (bytes_llegits == 0 && posicio == 0) {
-        return 0;
-    }
-
-    return 1;
+    return text;
 }
 
 /***********************************************
@@ -59,7 +67,7 @@ int copiarText(char **desti, char *origen) {
         longitud++;
     }
 
-    *desti = malloc((longitud + 1) * sizeof(char));
+    *desti = malloc((longitud + 1) * sizeof(**desti));
     if (*desti == NULL) {
         return -1;
     }

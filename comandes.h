@@ -39,14 +39,12 @@
 
 typedef struct {
     int tipus;
-    char argument[MIDA_LINIA];
+    char *argument;
     int valor;
 } Comanda;
 
 int escriureMissatge(char *text);
-int llegirComanda(char *buffer, int mida);
 int esNumero(char *text);
-int separarParaules(char *linia, char *paraules[], int maxim);
 int mostrarUsComanda(int tipus);
 int analitzarConnexio(char *paraules[], int nombre_paraules,
                       Comanda *comanda);

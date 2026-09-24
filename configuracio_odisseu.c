@@ -20,41 +20,58 @@
  *
  ************************************************/
 int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
-    char linia[MIDA_LINIA], *camp = NULL;
+    char *linia = NULL, *camp = NULL;
 
-    if (llegirLinia(fd, linia, MIDA_LINIA) != 1 ||copiarText(&configuracio->ruta_carpeta, linia) != 0) {
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
         return -1;
     }
+    if (copiarText(&configuracio->ruta_carpeta, linia) != 0) {
+        free(linia);
+        return -1;
+    }
+    free(linia);
+    linia = NULL;
 
-    if (llegirLinia(fd, linia, MIDA_LINIA) != 1) {
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
         return -1;
     }
     camp = strtok(linia, " ");
     if (camp == NULL || copiarText(&configuracio->nom, camp) != 0) {
+        free(linia);
         return -1;
     }
     camp = strtok(NULL, " ");
     if (camp == NULL || copiarText(&configuracio->ip_itaca, camp) != 0) {
+        free(linia);
         return -1;
     }
     camp = strtok(NULL, " ");
     if (camp == NULL) {
+        free(linia);
         return -1;
     }
     configuracio->port_itaca = atoi(camp);
+    free(linia);
+    linia = NULL;
 
-    if (llegirLinia(fd, linia, MIDA_LINIA) != 1) {
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
         return -1;
     }
     camp = strtok(linia, " ");
     if (camp == NULL || copiarText(&configuracio->ip_illa_inicial, camp) != 0) {
+        free(linia);
         return -1;
     }
     camp = strtok(NULL, " ");
     if (camp == NULL) {
+        free(linia);
         return -1;
     }
     configuracio->port_illa_inicial = atoi(camp);
+    free(linia);
 
     return 0;
 }
@@ -69,17 +86,23 @@ int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
  ************************************************/
 int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
     int i = 0;
-    char linia[MIDA_LINIA], *camp = NULL;
+    char *linia = NULL, *camp = NULL;
 
-    if (llegirLinia(fd, linia, MIDA_LINIA) != 1) {
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
         return -1;
     }
     configuracio->diners = atoi(linia);
+    free(linia);
+    linia = NULL;
 
-    if (llegirLinia(fd, linia, MIDA_LINIA) != 1) {
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
         return -1;
     }
     configuracio->nombre_aliments = atoi(linia);
+    free(linia);
+    linia = NULL;
     if (configuracio->nombre_aliments < 0) {
         return -1;
     }
@@ -87,7 +110,7 @@ int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
         return 0;
     }
 
-    configuracio->aliments = malloc(configuracio->nombre_aliments *sizeof(Aliment));
+    configuracio->aliments = malloc(configuracio->nombre_aliments * sizeof(*configuracio->aliments));
     if (configuracio->aliments == NULL) {
         return -1;
     }
@@ -98,19 +121,24 @@ int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
     }
 
     for (i = 0; i < configuracio->nombre_aliments; i++) {
-        if (llegirLinia(fd, linia, MIDA_LINIA) != 1) {
+        linia = llegirLinia(fd);
+        if (linia == NULL) {
             return -1;
         }
         camp = strtok(linia, " ");
         if (camp == NULL ||
             copiarText(&configuracio->aliments[i].nom, camp) != 0) {
+            free(linia);
             return -1;
         }
         camp = strtok(NULL, " ");
         if (camp == NULL) {
+            free(linia);
             return -1;
         }
         configuracio->aliments[i].quantitat = atoi(camp);
+        free(linia);
+        linia = NULL;
     }
 
     return 0;

@@ -21,7 +21,6 @@
 #include "tipus.h"
 
 int afegirRuta(char *linia, ConfiguracioIlla *configuracio);
-int carregarRutes(int fd, ConfiguracioIlla *configuracio);
 int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio);
 void alliberarConfiguracioSphragis(SPHRAGIS_Island *illa, int nombre_rutes);
 void conservarRutesValides(ConfiguracioIlla *configuracio, SPHRAGIS_Island *illa_sphragis);

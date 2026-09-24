@@ -21,7 +21,7 @@
  ************************************************/
 int carregarConfiguracioItaca(char *nom_fitxer, ConfiguracioItaca *configuracio) {
     int fd = -1, resultat = 0, caracters_escrits = 0;
-    char linia[MIDA_LINIA], *camp = NULL, *missatge = NULL;
+    char *linia = NULL, *camp = NULL, *missatge = NULL;
 
     fd = open(nom_fitxer, O_RDONLY);
     if (fd < 0) {
@@ -33,27 +33,45 @@ int carregarConfiguracioItaca(char *nom_fitxer, ConfiguracioItaca *configuracio)
         return -1;
     }
 
-    if (llegirLinia(fd, linia, MIDA_LINIA) != 1 ||copiarText(&configuracio->nom, linia) != 0) {
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
         resultat = -1;
+    } else {
+        resultat = copiarText(&configuracio->nom, linia);
     }
-    if (resultat == 0 &&
-        (llegirLinia(fd, linia, MIDA_LINIA) != 1 || copiarText(&configuracio->ruta_carpeta, linia) != 0)) {
-        resultat = -1;
-    }
-    if (resultat == 0 && llegirLinia(fd, linia, MIDA_LINIA) == 1) {
-        camp = strtok(linia, " ");
-        if (camp == NULL || copiarText(&configuracio->ip, camp) != 0) {
+    free(linia);
+    linia = NULL;
+
+    if (resultat == 0) {
+        linia = llegirLinia(fd);
+        if (linia == NULL) {
             resultat = -1;
         } else {
-            camp = strtok(NULL, " ");
-            if (camp == NULL) {
+            resultat = copiarText(&configuracio->ruta_carpeta, linia);
+        }
+        free(linia);
+        linia = NULL;
+    }
+
+    if (resultat == 0) {
+        linia = llegirLinia(fd);
+        if (linia == NULL) {
+            resultat = -1;
+        } else {
+            camp = strtok(linia, " ");
+            if (camp == NULL || copiarText(&configuracio->ip, camp) != 0) {
                 resultat = -1;
             } else {
-                configuracio->port = atoi(camp);
+                camp = strtok(NULL, " ");
+                if (camp == NULL) {
+                    resultat = -1;
+                } else {
+                    configuracio->port = atoi(camp);
+                }
             }
         }
-    } else if (resultat == 0) {
-        resultat = -1;
+        free(linia);
+        linia = NULL;
     }
     close(fd);
 
@@ -81,7 +99,10 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     Viatge *viatges_ampliats = NULL, *viatge = NULL;
     char *camp = NULL;
 
-    viatges_ampliats = realloc(configuracio->viatges, (configuracio->nombre_viatges + 1) * sizeof(Viatge));
+    viatges_ampliats = realloc(
+        configuracio->viatges,
+        (configuracio->nombre_viatges + 1) * sizeof(*viatges_ampliats)
+    );
     if (viatges_ampliats == NULL) {
         return -1;
     }
@@ -125,19 +146,22 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
  ************************************************/
 int carregarViatges(char *nom_fitxer, ConfiguracioItaca *configuracio) {
     int fd = -1, resultat = 0, caracters_escrits = 0;
-    char linia[MIDA_LINIA], *missatge = NULL;
+    char *linia = NULL, *missatge = NULL;
 
     fd = open(nom_fitxer, O_RDONLY);
     if (fd < 0) {
         resultat = -1;
     } else {
-        resultat = llegirLinia(fd, linia, MIDA_LINIA);
-        while (resultat == 1) {
+        linia = llegirLinia(fd);
+        while (linia != NULL && resultat == 0) {
             resultat = afegirViatge(linia, configuracio);
+            free(linia);
+            linia = NULL;
             if (resultat == 0) {
-                resultat = llegirLinia(fd, linia, MIDA_LINIA);
+                linia = llegirLinia(fd);
             }
         }
+        free(linia);
         close(fd);
         if (resultat == 0) {
             return 0;

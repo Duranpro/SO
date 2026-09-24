@@ -27,6 +27,7 @@ int finalitzar_programa = 0;
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
     finalitzar_programa = 1;
+    close(0);
 }
 
 /***********************************************

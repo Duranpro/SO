@@ -20,10 +20,6 @@
 
 #define MAX_PARAULES 4
 
-#define RESULTAT_DESCONEGUDA -1
-#define RESULTAT_SINTAXI_INCORRECTA 0
-#define RESULTAT_CORRECTE 1
-
 #define COMANDA_DESCONEGUDA 0
 #define COMANDA_CONNECT 1
 #define COMANDA_LIST_VOYAGES 2
@@ -46,17 +42,12 @@ typedef struct {
 int escriureMissatge(char *text);
 int esNumero(char *text);
 int mostrarUsComanda(int tipus);
-int analitzarConnexio(char *paraules[], int nombre_paraules,
-                      Comanda *comanda);
+int analitzarConnexio(char *paraules[], int nombre_paraules,Comanda *comanda);
 int analitzarLlista(char *paraules[], int nombre_paraules, Comanda *comanda);
-int analitzarAcceptacio(char *paraules[], int nombre_paraules,
-                        Comanda *comanda);
-int analitzarNavegacio(char *paraules[], int nombre_paraules,
-                       Comanda *comanda);
-int analitzarCompraVenda(char *paraules[], int nombre_paraules, int tipus,
-                         Comanda *comanda);
-int analitzarSenseArguments(int nombre_paraules, int tipus,
-                            Comanda *comanda);
+int analitzarAcceptacio(char *paraules[], int nombre_paraules,Comanda *comanda);
+int analitzarNavegacio(char *paraules[], int nombre_paraules,Comanda *comanda);
+int analitzarCompraVenda(char *paraules[], int nombre_paraules, int tipus,Comanda *comanda);
+int analitzarSenseArguments(int nombre_paraules, int tipus,Comanda *comanda);
 int analitzarComanda(char *linia, Comanda *comanda);
 int mostrarResultatComanda(int resultat, int tipus);
 int executarTerminal(int *finalitzar_programa);

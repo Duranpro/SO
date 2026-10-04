@@ -3,7 +3,7 @@
  * @Proposit: Declara el terminal i el parser de comandes d'Odysseus.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 23/09/2026
- * @Data ultima modificacio: 23/09/2026
+ * @Data ultima modificacio: 25/09/2026
  *
  ************************************************/
 
@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "comun.h"
+#include "tipus.h"
 
 #define MAX_PARAULES 4
 
@@ -36,6 +37,15 @@
 #define COMANDA_STATUS 9
 #define COMANDA_DELIVER 10
 #define COMANDA_CLAIM 11
+
+#define SENSE_CONNEXIO 0
+#define CONNEXIO_ITACA 1
+#define CONNEXIO_ILLA 2
+
+#define NOM_ILLA_INICIAL "Aeaea"
+
+#define PORT_DOCKED 1
+#define PORT_WAIT 2
 
 typedef struct {
     int tipus;
@@ -59,6 +69,19 @@ int analitzarSenseArguments(int nombre_paraules, int tipus,
                             Comanda *comanda);
 int analitzarComanda(char *linia, Comanda *comanda);
 int mostrarResultatComanda(int resultat, int tipus);
-int executarTerminal(int *finalitzar_programa);
+int connectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual);
+int mostrarViatgeDisponible(unsigned char *trama, int index_esperat,
+                            int *nombre_total);
+int llistarViatges(ConfiguracioOdisseu *configuracio, int socket_actual);
+int acceptarViatge(ConfiguracioOdisseu *configuracio, int socket_actual,
+                   int identificador);
+int desconnectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual);
+int rebreEstatPort(int socket_illa);
+int esperarPort(ConfiguracioOdisseu *configuracio, int *socket_actual,
+                char *nom_illa);
+int navegarAeaea(ConfiguracioOdisseu *configuracio, int *socket_actual,
+                 char *nom_illa);
+int executarTerminal(int *finalitzar_programa,
+                     ConfiguracioOdisseu *configuracio, int *socket_actual);
 
 #endif

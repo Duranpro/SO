@@ -5,7 +5,7 @@
  * @Proposit: Carrega i allibera la configuracio i els viatges d'Ithaca.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 18/09/2026
+ * @Data ultima modificacio: 24/09/2026
  *
  ************************************************/
 
@@ -112,7 +112,9 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     viatge->nom_objecte = NULL;
     viatge->ruta_fitxer = NULL;
     viatge->illa_desti = NULL;
+    viatge->odisseu_assignat = NULL;
     viatge->recompensa = 0;
+    viatge->disponible = 1;
     configuracio->nombre_viatges++;
 
     camp = strtok(linia, " ");
@@ -195,6 +197,7 @@ void alliberarConfiguracioItaca(ConfiguracioItaca *configuracio) {
         free(configuracio->viatges[i].nom_objecte);
         free(configuracio->viatges[i].ruta_fitxer);
         free(configuracio->viatges[i].illa_desti);
+        free(configuracio->viatges[i].odisseu_assignat);
     }
     free(configuracio->viatges);
 

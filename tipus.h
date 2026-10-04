@@ -3,7 +3,7 @@
  * @Proposit: Defineix els tipus de dades basics de The Nostos System.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 21/09/2026
+ * @Data ultima modificacio: 25/09/2026
  *
  ************************************************/
 
@@ -34,7 +34,9 @@ typedef struct {
     char *nom_objecte;
     char *ruta_fitxer;
     char *illa_desti;
+    char *odisseu_assignat;
     int recompensa;
+    int disponible;
 } Viatge;
 
 typedef struct {
@@ -47,6 +49,12 @@ typedef struct {
     int diners;
     int nombre_aliments;
     Aliment *aliments;
+    char *objecte_viatge;
+    char *illa_desti_viatge;
+    int identificador_viatge;
+    int recompensa_viatge;
+    char *ubicacio_actual;
+    int tipus_connexio;
 } ConfiguracioOdisseu;
 
 typedef struct {

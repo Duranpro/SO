@@ -5,7 +5,7 @@
  * @Proposit: Carrega i allibera la configuracio d'Odysseus.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 21/09/2026
+ * @Data ultima modificacio: 25/09/2026
  *
  ************************************************/
 
@@ -158,6 +158,9 @@ void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
     free(configuracio->nom);
     free(configuracio->ip_itaca);
     free(configuracio->ip_illa_inicial);
+    free(configuracio->objecte_viatge);
+    free(configuracio->illa_desti_viatge);
+    free(configuracio->ubicacio_actual);
 
     if (configuracio->aliments != NULL) {
         for (i = 0; i < configuracio->nombre_aliments; i++) {
@@ -171,7 +174,13 @@ void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
     configuracio->ip_itaca = NULL;
     configuracio->ip_illa_inicial = NULL;
     configuracio->aliments = NULL;
+    configuracio->objecte_viatge = NULL;
+    configuracio->illa_desti_viatge = NULL;
+    configuracio->ubicacio_actual = NULL;
     configuracio->nombre_aliments = 0;
+    configuracio->identificador_viatge = 0;
+    configuracio->recompensa_viatge = 0;
+    configuracio->tipus_connexio = 0;
 }
 
 /***********************************************

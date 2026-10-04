@@ -5,7 +5,7 @@
  * @Proposit: Conte el punt d'entrada del proces Odysseus.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 23/09/2026
+ * @Data ultima modificacio: 24/09/2026
  *
  ************************************************/
 
@@ -17,6 +17,7 @@
 #include "configuracio_odisseu.h"
 
 int finalitzar_programa = 0;
+int socket_actual = -1;
 
 /***********************************************
  *
@@ -27,6 +28,10 @@ int finalitzar_programa = 0;
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
     finalitzar_programa = 1;
+    if (socket_actual >= 0) {
+        close(socket_actual);
+        socket_actual = -1;
+    }
     close(0);
 }
 
@@ -64,7 +69,11 @@ int main(int argc, char *argv[]) {
         free(missatge);
     }
 
-    resultat = executarTerminal(&finalitzar_programa);
+    resultat = executarTerminal(&finalitzar_programa, &configuracio, &socket_actual);
+    if (socket_actual >= 0) {
+        close(socket_actual);
+        socket_actual = -1;
+    }
     alliberarConfiguracioOdisseu(&configuracio);
     if (resultat != 0) {
         return 1;

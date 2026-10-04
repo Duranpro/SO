@@ -3,7 +3,7 @@
 /***********************************************
  *
  * @Proposit: Carrega, valida i allibera les dades d'una illa.
- * @Autor/s: Antonio Duran Sabates
+ * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 21/09/2026
  * @Data ultima modificacio: 21/09/2026
  *

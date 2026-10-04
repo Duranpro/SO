@@ -3,7 +3,7 @@
 /***********************************************
  *
  * @Proposit: Conte el punt d'entrada del proces Odysseus.
- * @Autor/s: Antonio Duran Sabates
+ * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 18/09/2026
  * @Data ultima modificacio: 23/09/2026
  *

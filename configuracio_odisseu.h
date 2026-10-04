@@ -1,7 +1,7 @@
 /***********************************************
  *
  * @Proposit: Declara la carrega de la configuracio d'Odysseus.
- * @Autor/s: Antonio Duran Sabates
+ * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 18/09/2026
  * @Data ultima modificacio: 18/09/2026
  *

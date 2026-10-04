@@ -1,7 +1,7 @@
 /***********************************************
  *
  * @Proposit: Declara la carrega de la configuracio i el stock d'una illa.
- * @Autor/s: Antonio Duran Sabates
+ * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 21/09/2026
  * @Data ultima modificacio: 21/09/2026
  *

@@ -3,7 +3,7 @@
 /***********************************************
  *
  * @Proposit: Implementa el terminal i el parser de comandes d'Odysseus.
- * @Autor/s: Antonio Duran Sabates
+ * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 23/09/2026
  * @Data ultima modificacio: 23/09/2026
  *

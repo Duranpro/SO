@@ -1,7 +1,7 @@
 /***********************************************
  *
  * @Proposit: Defineix els tipus de dades basics de The Nostos System.
- * @Autor/s: Antonio Duran Sabates
+ * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 18/09/2026
  * @Data ultima modificacio: 21/09/2026
  *

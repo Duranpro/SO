@@ -47,4 +47,3 @@ valgrind-island: island
 clean:
 	rm -f odysseus.o ithaca.o island.o configuracio_odisseu.o configuracio_itaca.o configuracio_illa.o comandes.o comun.o odysseus ithaca island
 
-.PHONY: all clean valgrind valgrind-odysseus valgrind-ithaca valgrind-island

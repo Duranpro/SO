@@ -21,10 +21,6 @@
 
 #define MAX_PARAULES 4
 
-#define RESULTAT_DESCONEGUDA -1
-#define RESULTAT_SINTAXI_INCORRECTA 0
-#define RESULTAT_CORRECTE 1
-
 #define COMANDA_DESCONEGUDA 0
 #define COMANDA_CONNECT 1
 #define COMANDA_LIST_VOYAGES 2
@@ -56,32 +52,22 @@ typedef struct {
 int escriureMissatge(char *text);
 int esNumero(char *text);
 int mostrarUsComanda(int tipus);
-int analitzarConnexio(char *paraules[], int nombre_paraules,
-                      Comanda *comanda);
+int analitzarConnexio(char *paraules[], int nombre_paraules,Comanda *comanda);
 int analitzarLlista(char *paraules[], int nombre_paraules, Comanda *comanda);
-int analitzarAcceptacio(char *paraules[], int nombre_paraules,
-                        Comanda *comanda);
-int analitzarNavegacio(char *paraules[], int nombre_paraules,
-                       Comanda *comanda);
-int analitzarCompraVenda(char *paraules[], int nombre_paraules, int tipus,
-                         Comanda *comanda);
-int analitzarSenseArguments(int nombre_paraules, int tipus,
-                            Comanda *comanda);
+int analitzarAcceptacio(char *paraules[], int nombre_paraules, Comanda *comanda);
+int analitzarNavegacio(char *paraules[], int nombre_paraules,Comanda *comanda);
+int analitzarCompraVenda(char *paraules[], int nombre_paraules, int tipus, Comanda *comanda);
+int analitzarSenseArguments(int nombre_paraules, int tipus, Comanda *comanda);
 int analitzarComanda(char *linia, Comanda *comanda);
 int mostrarResultatComanda(int resultat, int tipus);
 int connectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual);
-int mostrarViatgeDisponible(unsigned char *trama, int index_esperat,
-                            int *nombre_total);
+int mostrarViatgeDisponible(unsigned char *trama, int index_esperat, int *nombre_total);
 int llistarViatges(ConfiguracioOdisseu *configuracio, int socket_actual);
-int acceptarViatge(ConfiguracioOdisseu *configuracio, int socket_actual,
-                   int identificador);
+int acceptarViatge(ConfiguracioOdisseu *configuracio, int socket_actual,int identificador);
 int desconnectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual);
 int rebreEstatPort(int socket_illa);
-int esperarPort(ConfiguracioOdisseu *configuracio, int *socket_actual,
-                char *nom_illa);
-int navegarAeaea(ConfiguracioOdisseu *configuracio, int *socket_actual,
-                 char *nom_illa);
-int executarTerminal(int *finalitzar_programa,
-                     ConfiguracioOdisseu *configuracio, int *socket_actual);
+int esperarPort(ConfiguracioOdisseu *configuracio, int *socket_actual,char *nom_illa);
+int navegarAeaea(ConfiguracioOdisseu *configuracio, int *socket_actual, char *nom_illa);
+int executarTerminal(int *finalitzar_programa, ConfiguracioOdisseu *configuracio, int *socket_actual);
 
 #endif

@@ -510,9 +510,9 @@ int analitzarConnexio(char *paraules[], int nombre_paraules, Comanda *comanda) {
     comanda->tipus = COMANDA_CONNECT;
     if (nombre_paraules == 2 &&
         strcasecmp(paraules[1], "ITHACA") == 0) {
-        return RESULTAT_CORRECTE;
+        return 1;
     }
-    return RESULTAT_SINTAXI_INCORRECTA;
+    return 0;
 }
 
 /***********************************************
@@ -526,20 +526,20 @@ int analitzarConnexio(char *paraules[], int nombre_paraules, Comanda *comanda) {
  ************************************************/
 int analitzarLlista(char *paraules[], int nombre_paraules, Comanda *comanda) {
     if (nombre_paraules < 2) {
-        return RESULTAT_DESCONEGUDA;
+        return -1;
     }
     if (strcasecmp(paraules[1], "VOYAGES") == 0) {
         comanda->tipus = COMANDA_LIST_VOYAGES;
     } else if (strcasecmp(paraules[1], "MARKET") == 0) {
         comanda->tipus = COMANDA_LIST_MARKET;
     } else {
-        return RESULTAT_DESCONEGUDA;
+        return -1;
     }
 
     if (nombre_paraules != 2) {
-        return RESULTAT_SINTAXI_INCORRECTA;
+        return 0;
     }
-    return RESULTAT_CORRECTE;
+    return 1;
 }
 
 /***********************************************
@@ -559,10 +559,10 @@ int analitzarAcceptacio(char *paraules[], int nombre_paraules, Comanda *comanda)
         identificador = atoi(paraules[1]);
         if (identificador > 0) {
             comanda->valor = identificador;
-            return RESULTAT_CORRECTE;
+            return 1;
         }
     }
-    return RESULTAT_SINTAXI_INCORRECTA;
+    return 0;
 }
 
 /***********************************************
@@ -578,9 +578,9 @@ int analitzarNavegacio(char *paraules[], int nombre_paraules, Comanda *comanda) 
     comanda->tipus = COMANDA_SAIL;
     if (nombre_paraules == 2) {
         comanda->argument = paraules[1];
-        return RESULTAT_CORRECTE;
+        return 1;
     }
-    return RESULTAT_SINTAXI_INCORRECTA;
+    return 0;
 }
 
 /***********************************************
@@ -602,10 +602,10 @@ int analitzarCompraVenda(char *paraules[], int nombre_paraules, int tipus, Coman
         if (quantitat > 0) {
             comanda->argument = paraules[1];
             comanda->valor = quantitat;
-            return RESULTAT_CORRECTE;
+            return 1;
         }
     }
-    return RESULTAT_SINTAXI_INCORRECTA;
+    return 0;
 }
 
 /***********************************************
@@ -620,9 +620,9 @@ int analitzarCompraVenda(char *paraules[], int nombre_paraules, int tipus, Coman
 int analitzarSenseArguments(int nombre_paraules, int tipus, Comanda *comanda) {
     comanda->tipus = tipus;
     if (nombre_paraules == 1) {
-        return RESULTAT_CORRECTE;
+        return 1;
     }
-    return RESULTAT_SINTAXI_INCORRECTA;
+    return 0;
 }
 
 /***********************************************
@@ -649,7 +649,7 @@ int analitzarComanda(char *linia, Comanda *comanda) {
     }
 
     if (nombre_paraules == 0) {
-        return RESULTAT_DESCONEGUDA;
+        return -1;
     }
     if (strcasecmp(paraules[0], "CONNECT") == 0) {
         return analitzarConnexio(paraules, nombre_paraules, comanda);
@@ -681,7 +681,7 @@ int analitzarComanda(char *linia, Comanda *comanda) {
     if (strcasecmp(paraules[0], "CLAIM") == 0) {
         return analitzarSenseArguments(nombre_paraules, COMANDA_CLAIM, comanda);
     }
-    return RESULTAT_DESCONEGUDA;
+    return -1;
 }
 
 /***********************************************
@@ -745,10 +745,10 @@ int mostrarUsComanda(int tipus) {
  *
  ************************************************/
 int mostrarResultatComanda(int resultat, int tipus) {
-    if (resultat == RESULTAT_CORRECTE) {
+    if (resultat == 1) {
         return escriureMissatge("Command OK\n");
     }
-    if (resultat == RESULTAT_SINTAXI_INCORRECTA) {
+    if (resultat == 0) {
         return mostrarUsComanda(tipus);
     }
     return escriureMissatge("Unknown command\n");
@@ -777,16 +777,16 @@ int executarTerminal(int *finalitzar_programa,
             finalitzat = 1;
         } else {
             resultat_analisi = analitzarComanda(linia, &comanda);
-            if (resultat_analisi == RESULTAT_CORRECTE &&
+            if (resultat_analisi == 1 &&
                 comanda.tipus == COMANDA_CONNECT) {
                 connectarItaca(configuracio, socket_actual);
-            } else if (resultat_analisi == RESULTAT_CORRECTE &&
+            } else if (resultat_analisi == 1 &&
                        comanda.tipus == COMANDA_LIST_VOYAGES) {
                 llistarViatges(configuracio, *socket_actual);
-            } else if (resultat_analisi == RESULTAT_CORRECTE &&
+            } else if (resultat_analisi == 1 &&
                        comanda.tipus == COMANDA_ACCEPT) {
                 acceptarViatge(configuracio, *socket_actual, comanda.valor);
-            } else if (resultat_analisi == RESULTAT_CORRECTE &&
+            } else if (resultat_analisi == 1 &&
                        comanda.tipus == COMANDA_SAIL) {
                 navegarAeaea(configuracio, socket_actual, comanda.argument);
             } else if (mostrarResultatComanda(resultat_analisi, comanda.tipus) != 0) {

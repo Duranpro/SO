@@ -58,17 +58,6 @@ int crearServidor(char *ip, int port) {
         return -1;
     }
 
-    resultat = setsockopt(socket_servidor, SOL_SOCKET, SO_REUSEADDR, &reutilitzar_adreca, sizeof(reutilitzar_adreca));
-    if (resultat < 0) {
-        caracters_escrits = asprintf(&missatge, "Error: no s'ha pogut preparar el socket servidor.\n");
-        if (caracters_escrits >= 0) {
-            write(2, missatge, caracters_escrits);
-            free(missatge);
-        }
-        close(socket_servidor);
-        return -1;
-    }
-
     resultat = bind(socket_servidor, (struct sockaddr *) &adreca_servidor, sizeof(adreca_servidor));
     if (resultat < 0) {
         caracters_escrits = asprintf(&missatge, "Error: no s'ha pogut associar el socket servidor.\n");

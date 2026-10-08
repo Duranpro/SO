@@ -12,7 +12,7 @@
 
 #define MIDA_TRAMA 256
 #define MIDA_DADES_TRAMA 253
-
+// REVISAR
 #define POSICIO_TIPUS 0
 #define POSICIO_FLAGS 1
 #define POSICIO_LONGITUD_DADES 2
@@ -48,7 +48,7 @@
 #define MOTIU_FLAGS_INVALIDS "INVALID_FLAGS"
 #define MOTIU_LONGITUD_INVALIDA "INVALID_LENGTH"
 #define MOTIU_DADES_INVALIDES "INVALID_DATA"
-
+// REVISAR
 #define TRAMA_CORRECTA 0
 #define TRAMA_ERROR_GENERAL -1
 #define TRAMA_ERROR_TIPUS -2
@@ -56,8 +56,7 @@
 #define TRAMA_ERROR_LONGITUD -4
 #define TRAMA_ERROR_DADES -5
 
-int crearTrama(unsigned char *trama, unsigned char tipus,
-               unsigned char flags, unsigned char *dades, int longitud);
+int crearTrama(unsigned char *trama, unsigned char tipus,unsigned char flags, unsigned char *dades, int longitud);
 int obtenirDades(unsigned char *trama, unsigned char *dades);
 int validarTrama(unsigned char *trama);
 int crearNack(unsigned char *trama, char *motiu);

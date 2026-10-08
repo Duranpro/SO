@@ -5,7 +5,7 @@
  * @Proposit: Conte el punt d'entrada del proces Ithaca.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 25/09/2026
+ * @Data ultima modificacio: 06/10/2026
  *
  ************************************************/
 
@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include "configuracio_itaca.h"
@@ -25,8 +26,13 @@ typedef struct {
     pthread_mutex_t *mutex_viatges;
 } ParametresOdisseu;
 
-int finalitzar_programa = 0;
-int socket_servidor_global = -1;
+typedef struct {
+    pthread_t fil;
+    int socket_client;
+} FilOdisseu;
+//REVISAR
+volatile sig_atomic_t finalitzar_programa = 0;
+volatile sig_atomic_t socket_servidor_global = -1;
 
 /***********************************************
  *
@@ -53,7 +59,7 @@ void gestionarSigint(int senyal __attribute__((unused))) {
  *
  ************************************************/
 int respondreErrorOperacio(int socket_client, unsigned char tipus, char *motiu) {
-    unsigned char resposta[MIDA_TRAMA] = {0};
+    unsigned char resposta[MIDA_TRAMA] = {0}; //REVISAR
     int longitud = 0, resultat = 0;
 
     while (motiu[longitud] != '\0') {
@@ -74,11 +80,12 @@ int respondreErrorOperacio(int socket_client, unsigned char tipus, char *motiu) 
  *              in: mutex_viatges = proteccio de l'estat dels viatges.
  *              in: nom_odisseu = Odysseus que fa la peticio.
  *              in: peticio = trama rebuda.
+ *              in/out: viatge_anterior = indica si tenia un viatge assignat.
  * @Retorn: Retorna 0 si respon correctament i -1 altrament.
  *
  ************************************************/
-int gestionarLlistaViatges(int socket_client, ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odisseu, unsigned char *peticio) {
-    unsigned char resposta[MIDA_TRAMA] = {0}, sense_viatges[] = "0";
+int gestionarLlistaViatges(int socket_client, ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odisseu, unsigned char *peticio, int *viatge_anterior) {
+    unsigned char resposta[MIDA_TRAMA] = {0}, sense_viatges[] = "0"; //REVISAR
     int *indexs_disponibles = NULL;
     char *dades = NULL, *missatge = NULL;
     int nombre_disponibles = 0, i = 0, index = 0, resultat = 0;
@@ -99,6 +106,17 @@ int gestionarLlistaViatges(int socket_client, ConfiguracioItaca *configuracio, p
     }
 
     pthread_mutex_lock(mutex_viatges);
+    if (*viatge_anterior == 1) {
+        for (i = 0; i < configuracio->nombre_viatges; i++) {
+            if (configuracio->viatges[i].disponible == 0 &&
+                configuracio->viatges[i].fracassat == 0 &&
+                configuracio->viatges[i].odisseu_assignat != NULL &&
+                strcmp(configuracio->viatges[i].odisseu_assignat, nom_odisseu) == 0) {
+                configuracio->viatges[i].fracassat = 1;
+            }
+        }
+        *viatge_anterior = 0;
+    }
     for (i = 0; i < configuracio->nombre_viatges; i++) {
         if (configuracio->viatges[i].disponible == 1) {
             indexs_disponibles[nombre_disponibles] = i;
@@ -153,7 +171,7 @@ int gestionarLlistaViatges(int socket_client, ConfiguracioItaca *configuracio, p
  *
  ************************************************/
 int gestionarAcceptacio(int socket_client, ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odisseu,unsigned char *peticio) {
-    unsigned char dades_peticio[MIDA_DADES_TRAMA + 1] = {0};
+    unsigned char dades_peticio[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
     unsigned char resposta[MIDA_TRAMA] = {0};
     Viatge *viatge = NULL;
     char *nom_assignat = NULL, *dades_resposta = NULL, *missatge = NULL;
@@ -235,7 +253,7 @@ int gestionarAcceptacio(int socket_client, ConfiguracioItaca *configuracio, pthr
  *
  ************************************************/
 int gestionarDesconnexio(int socket_client, char *nom_odisseu, unsigned char *peticio, int *finalitzar_connexio) {
-    unsigned char resposta[MIDA_TRAMA] = {0}, resposta_ok[] = "OK";
+    unsigned char resposta[MIDA_TRAMA] = {0}, resposta_ok[] = "OK"; //REVISAR
     char *missatge = NULL;
     int resultat = 0, caracters_escrits = 0;
 
@@ -274,13 +292,13 @@ void *atendreOdisseu(void *argument) {
     ParametresOdisseu *parametres = NULL;
     ConfiguracioItaca *configuracio = NULL;
     pthread_mutex_t *mutex_viatges = NULL;
-    unsigned char trama[MIDA_TRAMA] = {0}, resposta[MIDA_TRAMA] = {0};
+    unsigned char trama[MIDA_TRAMA] = {0}, resposta[MIDA_TRAMA] = {0}; //REVISAR
     unsigned char nom_odisseu[MIDA_DADES_TRAMA + 1] = {0};
     unsigned char resposta_ok[] = "OK";
     char *motiu = NULL, *missatge = NULL;
     int socket_client = -1, resultat = 0, longitud = 0, i = 0;
     int dades_valides = 1, longitud_motiu = 0, caracters_escrits = 0;
-    int finalitzar_connexio = 0;
+    int finalitzar_connexio = 0, viatge_anterior = 0;
 
     parametres = (ParametresOdisseu *) argument;
     socket_client = parametres->socket_client;
@@ -356,6 +374,15 @@ void *atendreOdisseu(void *argument) {
         free(missatge);
     }
 
+    pthread_mutex_lock(mutex_viatges);
+    for (i = 0; i < configuracio->nombre_viatges &&
+                viatge_anterior == 0; i++) {
+        if (configuracio->viatges[i].disponible == 0 &&configuracio->viatges[i].fracassat == 0 &&configuracio->viatges[i].odisseu_assignat != NULL &&strcmp(configuracio->viatges[i].odisseu_assignat, (char *) nom_odisseu) == 0) {
+            viatge_anterior = 1;
+        }
+    }
+    pthread_mutex_unlock(mutex_viatges);
+
     resultat = rebreTrama(socket_client, trama);
     while (resultat == TRAMA_CORRECTA && finalitzar_connexio == 0) {
         resultat = validarTrama(trama);
@@ -374,11 +401,16 @@ void *atendreOdisseu(void *argument) {
             }
             resultat = TRAMA_ERROR_GENERAL;
         } else if (trama[POSICIO_TIPUS] == TIPUS_LLISTAR_VIATGES) {
-            resultat = gestionarLlistaViatges(socket_client, configuracio, mutex_viatges,(char *) nom_odisseu, trama);
+            resultat = gestionarLlistaViatges(socket_client, configuracio, mutex_viatges, (char *) nom_odisseu, trama, &viatge_anterior);
         } else if (trama[POSICIO_TIPUS] == TIPUS_ACCEPTAR_VIATGE) {
             resultat = gestionarAcceptacio(socket_client, configuracio, mutex_viatges,(char *) nom_odisseu, trama);
         } else if (trama[POSICIO_TIPUS] == TIPUS_DESCONNECTAR_ITACA) {
             resultat = gestionarDesconnexio(socket_client, (char *) nom_odisseu, trama, &finalitzar_connexio);
+        } else {
+            resultat = crearNack(resposta, MOTIU_TIPUS_INVALID);
+            if (resultat == TRAMA_CORRECTA) {
+                resultat = enviarTrama(socket_client, resposta);
+            }
         }
         if (resultat == TRAMA_CORRECTA && finalitzar_connexio == 0) {
             resultat = rebreTrama(socket_client, trama);
@@ -400,10 +432,11 @@ void *atendreOdisseu(void *argument) {
 int main(int argc, char *argv[]) {
     ConfiguracioItaca configuracio = {0};
     ParametresOdisseu *parametres = NULL;
-    pthread_t fil;
+    FilOdisseu *fils = NULL, *fils_ampliats = NULL;
     pthread_mutex_t mutex_viatges;
     char *missatge = NULL, *nom_programa = argv[0];
     int resultat = 0, caracters_escrits = 0, descriptor_client = -1;
+    int nombre_fils = 0, i = 0;
 
     if (argc != 3) {
         caracters_escrits = asprintf(&missatge,"Usage: %s <config.dat> <voyages.dat>\n", nom_programa);
@@ -428,8 +461,9 @@ int main(int argc, char *argv[]) {
         alliberarConfiguracioItaca(&configuracio);
         return 1;
     }
-
+    //REVISAR
     signal(SIGINT, gestionarSigint);
+    signal(SIGPIPE, SIG_IGN);
     socket_servidor_global = crearServidor(configuracio.ip, configuracio.port);
     if (socket_servidor_global < 0) {
         pthread_mutex_destroy(&mutex_viatges);
@@ -450,18 +484,26 @@ int main(int argc, char *argv[]) {
             if (parametres == NULL) {
                 close(descriptor_client);
             } else {
-                parametres->socket_client = descriptor_client;
-                parametres->configuracio = &configuracio;
-                parametres->mutex_viatges = &mutex_viatges;
-                resultat = pthread_create(&fil, NULL, atendreOdisseu,
-                                           parametres);
-                if (resultat == 0) {
-                    pthread_detach(fil);
-                    parametres = NULL;
-                } else {
+                fils_ampliats = realloc(fils, (nombre_fils + 1) * sizeof(*fils_ampliats));
+                if (fils_ampliats == NULL) {
                     close(descriptor_client);
                     free(parametres);
                     parametres = NULL;
+                } else {
+                    fils = fils_ampliats;
+                    parametres->socket_client = descriptor_client;
+                    parametres->configuracio = &configuracio;
+                    parametres->mutex_viatges = &mutex_viatges;
+                    resultat = pthread_create(&fils[nombre_fils].fil, NULL, atendreOdisseu, parametres);
+                    if (resultat == 0) {
+                        fils[nombre_fils].socket_client = descriptor_client;
+                        nombre_fils++;
+                        parametres = NULL;
+                    } else {
+                        close(descriptor_client);
+                        free(parametres);
+                        parametres = NULL;
+                    }
                 }
             }
         } else if (finalitzar_programa == 0) {
@@ -477,6 +519,13 @@ int main(int argc, char *argv[]) {
         close(socket_servidor_global);
         socket_servidor_global = -1;
     }
+    for (i = 0; i < nombre_fils; i++) {
+        shutdown(fils[i].socket_client, SHUT_RDWR); //REVISAR
+    }
+    for (i = 0; i < nombre_fils; i++) {
+        pthread_join(fils[i].fil, NULL);
+    }
+    free(fils);
 
     caracters_escrits = asprintf(&missatge, "Ithaca closes the harbor.\n");
     if (caracters_escrits >= 0) {

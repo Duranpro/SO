@@ -16,7 +16,7 @@
 #include "comandes.h"
 #include "configuracio_odisseu.h"
 
-int finalitzar_programa = 0;
+volatile sig_atomic_t finalitzar_programa = 0;
 int socket_actual = -1;
 
 /***********************************************
@@ -63,6 +63,7 @@ int main(int argc, char *argv[]) {
     }
 
     signal(SIGINT, gestionarSigint);
+    signal(SIGPIPE, SIG_IGN); // REVISAR
     caracters_escrits = asprintf(&missatge,"Odysseus %s is ready to sail.\n", configuracio.nom);
     if (caracters_escrits >= 0) {
         write(1, missatge, caracters_escrits);

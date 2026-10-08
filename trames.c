@@ -23,7 +23,7 @@
  * @Retorn: Retorna 0 si crea la trama i -1 si els parametres no son valids.
  *
  ************************************************/
-int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, unsigned char *dades, int longitud) {
+int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, unsigned char *dades, int longitud) { //REVISAR
     if (trama == NULL || longitud < 0 || longitud > MIDA_DADES_TRAMA) {
         return TRAMA_ERROR_GENERAL;
     }
@@ -50,7 +50,7 @@ int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, u
  * @Retorn: Retorna 0 si copia les dades i -1 si els parametres no son valids.
  *
  ************************************************/
-int obtenirDades(unsigned char *trama, unsigned char *dades) {
+int obtenirDades(unsigned char *trama, unsigned char *dades) { //REVISAR
     int longitud = 0;
 
     if (trama == NULL) {
@@ -73,7 +73,7 @@ int obtenirDades(unsigned char *trama, unsigned char *dades) {
  * @Retorn: Retorna 0 si es valida o el codi de l'error detectat.
  *
  ************************************************/
-int validarTrama(unsigned char *trama) {
+int validarTrama(unsigned char *trama) { //REVISAR
     int longitud = 0, i = 0;
 
     if (trama == NULL) {
@@ -103,11 +103,7 @@ int validarTrama(unsigned char *trama) {
         return TRAMA_ERROR_TIPUS;
     }
 
-    if (trama[POSICIO_FLAGS] != FLAGS_PETICIO_TEXTUAL &&
-        trama[POSICIO_FLAGS] != FLAGS_RESPOSTA_CORRECTA &&
-        trama[POSICIO_FLAGS] != FLAGS_RESPOSTA_ERROR &&
-        trama[POSICIO_FLAGS] != FLAGS_DADES_BINARIES &&
-        trama[POSICIO_FLAGS] != FLAGS_RESPOSTA_BINARIA) {
+    if (trama[POSICIO_FLAGS] != FLAGS_PETICIO_TEXTUAL && trama[POSICIO_FLAGS] != FLAGS_RESPOSTA_CORRECTA && trama[POSICIO_FLAGS] != FLAGS_RESPOSTA_ERROR && trama[POSICIO_FLAGS] != FLAGS_DADES_BINARIES && trama[POSICIO_FLAGS] != FLAGS_RESPOSTA_BINARIA) {
         return TRAMA_ERROR_FLAGS;
     }
 
@@ -133,7 +129,7 @@ int validarTrama(unsigned char *trama) {
  * @Retorn: Retorna 0 si crea la trama i -1 si no la pot crear.
  *
  ************************************************/
-int crearNack(unsigned char *trama, char *motiu) {
+int crearNack(unsigned char *trama, char *motiu) { //REVISAR 
     int longitud = 0;
 
     if (motiu == NULL) {
@@ -154,7 +150,7 @@ int crearNack(unsigned char *trama, char *motiu) {
  * @Retorn: Retorna 0 si envia 256 bytes i -1 altrament.
  *
  ************************************************/
-int enviarTrama(int fd, unsigned char *trama) {
+int enviarTrama(int fd, unsigned char *trama) { //REVISAR
     int bytes_escrits = 0;
 
     if (trama == NULL) {
@@ -175,7 +171,7 @@ int enviarTrama(int fd, unsigned char *trama) {
  * @Retorn: Retorna 0 si rep 256 bytes i -1 altrament.
  *
  ************************************************/
-int rebreTrama(int fd, unsigned char *trama) {
+int rebreTrama(int fd, unsigned char *trama) { //REVISAR
     int bytes_llegits = 0;
 
     if (trama == NULL) {

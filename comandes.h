@@ -3,17 +3,19 @@
  * @Proposit: Declara el terminal i el parser de comandes d'Odysseus.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 23/09/2026
- * @Data ultima modificacio: 25/09/2026
+ * @Data ultima modificacio: 07/10/2026
  *
  ************************************************/
 
 #ifndef COMANDES_H
 #define COMANDES_H
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/select.h>
 #include <unistd.h>
 
 #include "comun.h"
@@ -38,10 +40,12 @@
 #define CONNEXIO_ITACA 1
 #define CONNEXIO_ILLA 2
 
-#define NOM_ILLA_INICIAL "Aeaea"
-
 #define PORT_DOCKED 1
 #define PORT_WAIT 2
+
+#define ODISSEU_MORT -2
+#define SEGONS_RACIO 5
+#define QUILOS_RACIO 7
 
 typedef struct {
     int tipus;
@@ -66,8 +70,27 @@ int llistarViatges(ConfiguracioOdisseu *configuracio, int socket_actual);
 int acceptarViatge(ConfiguracioOdisseu *configuracio, int socket_actual,int identificador);
 int desconnectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual);
 int rebreEstatPort(int socket_illa);
-int esperarPort(ConfiguracioOdisseu *configuracio, int *socket_actual,char *nom_illa);
+int calcularTotalProvisions(ConfiguracioOdisseu *configuracio);
+int consumirProvisions(ConfiguracioOdisseu *configuracio, int quantitat);
+int esperarEntradaPort(ConfiguracioOdisseu *configuracio,int *socket_actual);
+int esperarPort(ConfiguracioOdisseu *configuracio, int *socket_actual,char *nom_illa, char *ip, int port);
 int navegarAeaea(ConfiguracioOdisseu *configuracio, int *socket_actual, char *nom_illa);
-int executarTerminal(int *finalitzar_programa, ConfiguracioOdisseu *configuracio, int *socket_actual);
+int buscarIllaConeguda(ConfiguracioOdisseu *configuracio, char *nom_illa);
+int afegirIllaConeguda(ConfiguracioOdisseu *configuracio, char *nom_illa,char *ip, int port);
+int afegirConnexioConeguda(IllaConeguda *illa, char *nom_desti);
+int afegirRutaConeguda(ConfiguracioOdisseu *configuracio, char *nom_origen,char *nom_desti, char *ip_desti, int port_desti);
+int buscarDestiDirecte(ConfiguracioOdisseu *configuracio, char *nom_origen,char *nom_desti);
+int interpretarRutaMapa(unsigned char *trama, int index_esperat,int *nombre_total, Ruta *ruta, int *sense_rutes);
+int comprarMapa(ConfiguracioOdisseu *configuracio, int socket_actual, int quantitat);
+int mostrarMapa(ConfiguracioOdisseu *configuracio);
+int sortirIlla(ConfiguracioOdisseu *configuracio, int *socket_actual);
+int navegarEntreIlles(ConfiguracioOdisseu *configuracio,int *socket_actual, char *nom_illa);
+int interpretarEntradaMercat(unsigned char *trama, int index_esperat,int *nombre_total, Producte *producte, int *es_mapa);
+int llistarMercat(ConfiguracioOdisseu *configuracio, int socket_actual);
+int rebreRespostaComerc(unsigned char *resposta, int tipus,char *producte_esperat, int quantitat_esperada, int *valor);
+int comprarAliment(ConfiguracioOdisseu *configuracio, int socket_actual, char *nom_producte, int quantitat);
+int vendreAliment(ConfiguracioOdisseu *configuracio, int socket_actual, char *nom_producte, int quantitat);
+int mostrarEstat(ConfiguracioOdisseu *configuracio);
+int executarTerminal(volatile sig_atomic_t *finalitzar_programa, ConfiguracioOdisseu *configuracio, int *socket_actual);
 
 #endif

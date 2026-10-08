@@ -3,7 +3,7 @@
  * @Proposit: Defineix els tipus de dades basics de The Nostos System.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 25/09/2026
+ * @Data ultima modificacio: 07/10/2026
  *
  ************************************************/
 
@@ -11,6 +11,8 @@
 #define TIPUS_H
 
 #define MIDA_NOM_PRODUCTE 100
+#define MAX_ILLES_CONEGUDES 6
+#define NOM_ILLA_INICIAL "Aeaea"
 
 typedef struct {
     char *nom;
@@ -30,6 +32,14 @@ typedef struct {
 } Producte;
 
 typedef struct {
+    char *nom;
+    char *ip;
+    int port;
+    int nombre_connexions;
+    char **connexions;
+} IllaConeguda;
+
+typedef struct {
     int identificador;
     char *nom_objecte;
     char *ruta_fitxer;
@@ -37,6 +47,7 @@ typedef struct {
     char *odisseu_assignat;
     int recompensa;
     int disponible;
+    int fracassat;
 } Viatge;
 
 typedef struct {
@@ -55,6 +66,11 @@ typedef struct {
     int recompensa_viatge;
     char *ubicacio_actual;
     int tipus_connexio;
+    int nombre_productes_mercat;
+    Producte *productes_mercat;
+    int nombre_illes_conegudes;
+    IllaConeguda *illes_conegudes;
+    int desti_assolit;
 } ConfiguracioOdisseu;
 
 typedef struct {

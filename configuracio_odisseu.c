@@ -5,7 +5,7 @@
  * @Proposit: Carrega i allibera la configuracio d'Odysseus.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 25/09/2026
+ * @Data ultima modificacio: 07/10/2026
  *
  ************************************************/
 
@@ -152,7 +152,7 @@ int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
  *
  ************************************************/
 void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
-    int i = 0;
+    int i = 0, j = 0;
 
     free(configuracio->ruta_carpeta);
     free(configuracio->nom);
@@ -161,6 +161,18 @@ void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
     free(configuracio->objecte_viatge);
     free(configuracio->illa_desti_viatge);
     free(configuracio->ubicacio_actual);
+    free(configuracio->productes_mercat);
+
+    for (i = 0; i < configuracio->nombre_illes_conegudes; i++) {
+        free(configuracio->illes_conegudes[i].nom);
+        free(configuracio->illes_conegudes[i].ip);
+        for (j = 0; j < configuracio->illes_conegudes[i].nombre_connexions;
+             j++) {
+            free(configuracio->illes_conegudes[i].connexions[j]);
+        }
+        free(configuracio->illes_conegudes[i].connexions);
+    }
+    free(configuracio->illes_conegudes);
 
     if (configuracio->aliments != NULL) {
         for (i = 0; i < configuracio->nombre_aliments; i++) {
@@ -177,9 +189,14 @@ void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
     configuracio->objecte_viatge = NULL;
     configuracio->illa_desti_viatge = NULL;
     configuracio->ubicacio_actual = NULL;
+    configuracio->productes_mercat = NULL;
+    configuracio->illes_conegudes = NULL;
     configuracio->nombre_aliments = 0;
+    configuracio->nombre_productes_mercat = 0;
+    configuracio->nombre_illes_conegudes = 0;
     configuracio->identificador_viatge = 0;
     configuracio->recompensa_viatge = 0;
+    configuracio->desti_assolit = 0;
     configuracio->tipus_connexio = 0;
 }
 
@@ -208,6 +225,24 @@ int carregarConfiguracioOdisseu(char *nom_fitxer, ConfiguracioOdisseu *configura
     resultat = carregarLocalitzacio(fd, configuracio);
     if (resultat == 0) {
         resultat = carregarAliments(fd, configuracio);
+    }
+    if (resultat == 0) {
+        configuracio->illes_conegudes = malloc(
+            sizeof(*configuracio->illes_conegudes));
+        if (configuracio->illes_conegudes == NULL) {
+            resultat = -1;
+        } else {
+            configuracio->nombre_illes_conegudes = 1;
+            configuracio->illes_conegudes[0].nom = NULL;
+            configuracio->illes_conegudes[0].ip = NULL;
+            configuracio->illes_conegudes[0].port =configuracio->port_illa_inicial;
+            configuracio->illes_conegudes[0].nombre_connexions = 0;
+            configuracio->illes_conegudes[0].connexions = NULL;
+            resultat = copiarText(&configuracio->illes_conegudes[0].nom,NOM_ILLA_INICIAL);
+            if (resultat == 0) {
+                resultat = copiarText(&configuracio->illes_conegudes[0].ip, configuracio->ip_illa_inicial);
+            }
+        }
     }
     close(fd);
 

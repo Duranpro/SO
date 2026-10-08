@@ -5,7 +5,7 @@
  * @Proposit: Carrega, valida i allibera les dades d'una illa.
  * @Autor/s: Antonio Duran Sabates
  * @Data creacio: 21/09/2026
- * @Data ultima modificacio: 21/09/2026
+ * @Data ultima modificacio: 07/10/2026
  *
  ************************************************/
 
@@ -310,6 +310,35 @@ int carregarStock(char *nom_fitxer, ConfiguracioIlla *configuracio) {
         }
         return -1;
     }
+    return 0;
+}
+
+/***********************************************
+ *
+ * @Finalitat: Reescriu el stock actual al fitxer binari de l'illa.
+ * @Parametres: in: nom_fitxer = ruta del fitxer de stock.
+ *              in: configuracio = productes que s'han de guardar.
+ * @Retorn: Retorna 0 si guarda el stock i -1 si es produeix un error.
+ *
+ ************************************************/
+int guardarStock(char *nom_fitxer, ConfiguracioIlla *configuracio) {
+    int fd = -1, i = 0, bytes_escrits = 0;
+    int mida_producte = sizeof(*configuracio->productes);
+
+    fd = open(nom_fitxer, O_WRONLY | O_TRUNC);
+    if (fd < 0) {
+        return -1;
+    }
+
+    for (i = 0; i < configuracio->nombre_productes; i++) {
+        bytes_escrits = write(fd, &configuracio->productes[i],
+                              mida_producte);
+        if (bytes_escrits != mida_producte) {
+            close(fd);
+            return -1;
+        }
+    }
+    close(fd);
     return 0;
 }
 

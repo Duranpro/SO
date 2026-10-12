@@ -84,7 +84,7 @@ int enviarRespostaArribada(int socket_client, unsigned char flags, char *estat) 
     while (estat[longitud] != '\0') {
         longitud++;
     }
-    resultat = crearTrama(resposta, TIPUS_ARRIBADA_ILLA, flags,(unsigned char *) estat, longitud);
+    resultat = crearTrama(resposta, TIPUS_ARRIBADA_ILLA, flags,estat, longitud);
     if (resultat == TRAMA_CORRECTA) {
         resultat = enviarTrama(socket_client, resposta);
     }
@@ -108,7 +108,7 @@ int enviarRespostaMercat(int socket_client, unsigned char tipus,unsigned char fl
     while (dades[longitud] != '\0') {
         longitud++;
     }
-    resultat = crearTrama(resposta, tipus, flags, (unsigned char *) dades, longitud);
+    resultat = crearTrama(resposta, tipus, flags, dades, longitud);
     if (resultat == TRAMA_CORRECTA) {
         resultat = enviarTrama(socket_client, resposta);
     }
@@ -126,7 +126,7 @@ int enviarRespostaMercat(int socket_client, unsigned char tipus,unsigned char fl
  * @Retorn: Retorna 0 si la peticio es valida i -1 altrament.
  *
  ************************************************/
-int obtenirOperacioMercat(unsigned char *peticio, unsigned char tipus, unsigned char *dades, char **nom_producte, int *quantitat) { //REVISAR
+int obtenirOperacioMercat(unsigned char *peticio, unsigned char tipus, char *dades, char **nom_producte, int *quantitat) { //REVISAR
     char *quantitat_text = NULL, *camp_extra = NULL;
     int longitud = 0, i = 0;
 
@@ -144,7 +144,7 @@ int obtenirOperacioMercat(unsigned char *peticio, unsigned char tipus, unsigned 
     }
     dades[longitud] = '\0';
 
-    *nom_producte = strtok((char *) dades, "&");
+    *nom_producte = strtok(dades, "&");
     quantitat_text = strtok(NULL, "&");
     camp_extra = strtok(NULL, "&");
     if (*nom_producte == NULL || (*nom_producte)[0] == '\0' ||quantitat_text == NULL || camp_extra != NULL ||quantitat_text[0] == '\0') {
@@ -242,7 +242,7 @@ int gestionarLlistaMercat(int socket_client, ConfiguracioIlla *configuracio, pth
  *
  ************************************************/
 int gestionarCompra(int socket_client, ConfiguracioIlla *configuracio,pthread_mutex_t *mutex_stock, char *ruta_stock, int atracat, unsigned char *peticio) {
-    unsigned char dades_peticio[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
+    char dades_peticio[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
     char *nom_producte = NULL, *dades_resposta = NULL, *motiu = NULL;
     int quantitat = 0, index_producte = -1, quantitat_anterior = 0;
     int cost = 0, resultat = 0, longitud = 0, i = 0;
@@ -304,7 +304,7 @@ int gestionarCompra(int socket_client, ConfiguracioIlla *configuracio,pthread_mu
  *
  ************************************************/
 int gestionarVenda(int socket_client, ConfiguracioIlla *configuracio, pthread_mutex_t *mutex_stock, char *ruta_stock, int atracat, unsigned char *peticio) {
-    unsigned char dades_peticio[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
+    char dades_peticio[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
     char *nom_producte = NULL, *dades_resposta = NULL, *motiu = NULL;
     int quantitat = 0, index_producte = -1, quantitat_anterior = 0;
     int ingres = 0, resultat = 0, longitud = 0, i = 0;
@@ -362,7 +362,7 @@ int gestionarVenda(int socket_client, ConfiguracioIlla *configuracio, pthread_mu
  *
  ************************************************/
 int gestionarCompraMapa(int socket_client, ConfiguracioIlla *configuracio,int atracat, char *nom_odisseu, unsigned char *peticio) {
-    unsigned char dades_peticio[MIDA_DADES_TRAMA + 1] = {0}; // REVISAR
+    char dades_peticio[MIDA_DADES_TRAMA + 1] = {0}; // REVISAR
     char *dades_resposta = NULL, *missatge = NULL;
     int longitud = 0, resultat = 0, i = 0, caracters_escrits = 0;
 
@@ -486,7 +486,7 @@ int alliberarPlaca(ClientIlla *client, EstatPort *port, ConfiguracioIlla *config
     pthread_mutex_unlock(mutex_port);
 
     if (confirmar_sortida == 1) {
-        resultat = crearTrama(resposta, TIPUS_SORTIDA_ILLA, FLAGS_RESPOSTA_CORRECTA, (unsigned char *) "OK", 2);
+        resultat = crearTrama(resposta, TIPUS_SORTIDA_ILLA, FLAGS_RESPOSTA_CORRECTA, "OK", 2);
         if (resultat == TRAMA_CORRECTA) {
             resultat = enviarTrama(client->socket_client, resposta);
         }
@@ -527,8 +527,9 @@ void *atendreOdisseuIlla(void *argument) {
     pthread_mutex_t *mutex_port = NULL, *mutex_stock = NULL;
     pthread_cond_t *condicio_port = NULL;
     ClientIlla *client = NULL;
-    unsigned char peticio[MIDA_TRAMA] = {0}, dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
+    unsigned char peticio[MIDA_TRAMA] = {0};
     unsigned char nack[MIDA_TRAMA] = {0};
+    char dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
     char *motiu = NULL, *missatge = NULL, *ruta_stock = NULL;
     int socket_client = -1, resultat = 0, longitud = 0, i = 0;
     int dades_valides = 1, caracters_escrits = 0, port_ple = 0;
@@ -603,7 +604,7 @@ void *atendreOdisseuIlla(void *argument) {
         free(client);
         return NULL;
     }
-    if (copiarText(&client->nom, (char *) dades) != 0) {
+    if (copiarText(&client->nom, dades) != 0) {
         enviarRespostaArribada(socket_client, FLAGS_RESPOSTA_ERROR, "MEMORY_ERROR");
         close(socket_client);
         free(client);

@@ -56,8 +56,8 @@
 #define TRAMA_ERROR_LONGITUD -4
 #define TRAMA_ERROR_DADES -5
 
-int crearTrama(unsigned char *trama, unsigned char tipus,unsigned char flags, unsigned char *dades, int longitud);
-int obtenirDades(unsigned char *trama, unsigned char *dades);
+int crearTrama(unsigned char *trama, unsigned char tipus,unsigned char flags, char *dades, int longitud);
+int obtenirDades(unsigned char *trama, char *dades);
 int validarTrama(unsigned char *trama);
 int crearNack(unsigned char *trama, char *motiu);
 int enviarTrama(int fd, unsigned char *trama);

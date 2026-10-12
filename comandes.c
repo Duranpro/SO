@@ -47,7 +47,7 @@ int escriureMissatge(char *text) {
  ************************************************/
 int connectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual) {
     unsigned char trama_peticio[MIDA_TRAMA] = {0}, trama_resposta[MIDA_TRAMA] = {0}; //REVISAR
-    unsigned char dades_resposta[MIDA_DADES_TRAMA + 1] = {0};
+    char dades_resposta[MIDA_DADES_TRAMA + 1] = {0};
     int socket_itaca = -1, longitud_nom = 0, resultat = 0;
 
     if (*socket_actual >= 0) {
@@ -69,7 +69,7 @@ int connectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual) {
     }
     *socket_actual = socket_itaca;
 
-    resultat = crearTrama(trama_peticio, TIPUS_CONNECTAR_ITACA, FLAGS_PETICIO_TEXTUAL,(unsigned char *) configuracio->nom, longitud_nom);
+    resultat = crearTrama(trama_peticio, TIPUS_CONNECTAR_ITACA, FLAGS_PETICIO_TEXTUAL,configuracio->nom, longitud_nom);
     if (resultat == TRAMA_CORRECTA) {
         resultat = enviarTrama(socket_itaca, trama_peticio);
     }
@@ -106,7 +106,7 @@ int connectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual) {
  *
  ************************************************/
 int mostrarViatgeDisponible(unsigned char *trama, int index_esperat, int *nombre_total) {
-    unsigned char dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
+    char dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
     char *index_text = NULL, *total_text = NULL, *identificador_text = NULL;
     char *objecte = NULL, *desti = NULL, *recompensa_text = NULL;
     char *camp_extra = NULL, *missatge = NULL;
@@ -121,7 +121,7 @@ int mostrarViatgeDisponible(unsigned char *trama, int index_esperat, int *nombre
     }
     dades[longitud] = '\0';
 
-    index_text = strtok((char *) dades, "&");
+    index_text = strtok(dades, "&");
     total_text = strtok(NULL, "&");
     identificador_text = strtok(NULL, "&");
     objecte = strtok(NULL, "&");
@@ -158,7 +158,7 @@ int mostrarViatgeDisponible(unsigned char *trama, int index_esperat, int *nombre
  ************************************************/
 int llistarViatges(ConfiguracioOdisseu *configuracio, int socket_actual) {
     unsigned char peticio[MIDA_TRAMA] = {0}, resposta[MIDA_TRAMA] = {0}; //REVISAR
-    unsigned char dades[MIDA_DADES_TRAMA + 1] = {0};
+    char dades[MIDA_DADES_TRAMA + 1] = {0};
     int resultat = 0, nombre_total = 0, i = 0, longitud = 0;
 
     if (socket_actual < 0 ||
@@ -219,7 +219,7 @@ int llistarViatges(ConfiguracioOdisseu *configuracio, int socket_actual) {
  ************************************************/
 int acceptarViatge(ConfiguracioOdisseu *configuracio, int socket_actual, int identificador) {
     unsigned char peticio[MIDA_TRAMA] = {0}, resposta[MIDA_TRAMA] = {0}; //REVISAR
-    unsigned char dades[MIDA_DADES_TRAMA + 1] = {0};
+    char dades[MIDA_DADES_TRAMA + 1] = {0};
     char *identificador_text = NULL, *estat = NULL, *camp_id = NULL;
     char *objecte = NULL, *desti = NULL, *recompensa_text = NULL;
     char *camp_extra = NULL, *missatge = NULL;
@@ -239,7 +239,7 @@ int acceptarViatge(ConfiguracioOdisseu *configuracio, int socket_actual, int ide
     if (longitud < 0) {
         return -1;
     }
-    resultat = crearTrama(peticio, TIPUS_ACCEPTAR_VIATGE, FLAGS_PETICIO_TEXTUAL,(unsigned char *) identificador_text, longitud);
+    resultat = crearTrama(peticio, TIPUS_ACCEPTAR_VIATGE, FLAGS_PETICIO_TEXTUAL,identificador_text, longitud);
     free(identificador_text);
     if (resultat == TRAMA_CORRECTA) {
         resultat = enviarTrama(socket_actual, peticio);
@@ -269,7 +269,7 @@ int acceptarViatge(ConfiguracioOdisseu *configuracio, int socket_actual, int ide
         return -1;
     }
     dades[longitud] = '\0';
-    estat = strtok((char *) dades, "&");
+    estat = strtok(dades, "&");
     camp_id = strtok(NULL, "&");
     objecte = strtok(NULL, "&");
     desti = strtok(NULL, "&");
@@ -311,7 +311,7 @@ int acceptarViatge(ConfiguracioOdisseu *configuracio, int socket_actual, int ide
  ************************************************/
 int desconnectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual) {
     unsigned char peticio[MIDA_TRAMA] = {0}, resposta[MIDA_TRAMA] = {0}; //REVISAR
-    unsigned char dades[MIDA_DADES_TRAMA + 1] = {0};
+    char dades[MIDA_DADES_TRAMA + 1] = {0};
     int resultat = 0;
 
     resultat = crearTrama(peticio, TIPUS_DESCONNECTAR_ITACA,FLAGS_PETICIO_TEXTUAL, NULL, 0);
@@ -350,7 +350,7 @@ int desconnectarItaca(ConfiguracioOdisseu *configuracio, int *socket_actual) {
  ************************************************/
 int rebreEstatPort(int socket_illa) {
     unsigned char resposta[MIDA_TRAMA] = {0}; //REVISAR
-    unsigned char dades[MIDA_DADES_TRAMA + 1] = {0};
+    char dades[MIDA_DADES_TRAMA + 1] = {0};
     int longitud = 0, resultat = 0;
 
     resultat = rebreTrama(socket_illa, resposta);
@@ -362,10 +362,10 @@ int rebreEstatPort(int socket_illa) {
         return -1;
     }
     dades[longitud] = '\0';
-    if (longitud == 6 && strcmp((char *) dades, "DOCKED") == 0) {
+    if (longitud == 6 && strcmp(dades, "DOCKED") == 0) {
         return PORT_DOCKED;
     }
-    if (longitud == 4 && strcmp((char *) dades, "WAIT") == 0) {
+    if (longitud == 4 && strcmp(dades, "WAIT") == 0) {
         return PORT_WAIT;
     }
     return -1;
@@ -508,7 +508,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *socket_actual,char *nom_
     while (configuracio->nom[longitud_nom] != '\0') {
         longitud_nom++;
     }
-    resultat = crearTrama(peticio, TIPUS_ARRIBADA_ILLA,FLAGS_PETICIO_TEXTUAL,(unsigned char *) configuracio->nom, longitud_nom);
+    resultat = crearTrama(peticio, TIPUS_ARRIBADA_ILLA,FLAGS_PETICIO_TEXTUAL,configuracio->nom, longitud_nom);
     if (resultat == TRAMA_CORRECTA) {
         resultat = enviarTrama(socket_illa, peticio);
     }
@@ -793,7 +793,7 @@ int buscarDestiDirecte(ConfiguracioOdisseu *configuracio, char *nom_origen,char 
  *
  ************************************************/
 int interpretarRutaMapa(unsigned char *trama, int index_esperat,int *nombre_total, Ruta *ruta, int *sense_rutes) {
-    unsigned char dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
+    char dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
     char *estat = NULL, *cost_text = NULL, *index_text = NULL;
     char *total_text = NULL, *nom_illa = NULL, *ip = NULL;
     char *port_text = NULL, *camp_extra = NULL;
@@ -812,7 +812,7 @@ int interpretarRutaMapa(unsigned char *trama, int index_esperat,int *nombre_tota
         }
     }
     dades[longitud] = '\0';
-    estat = strtok((char *) dades, "&");
+    estat = strtok(dades, "&");
     cost_text = strtok(NULL, "&");
     index_text = strtok(NULL, "&");
     if (estat == NULL || cost_text == NULL || index_text == NULL ||strcmp(estat, "OK") != 0 || esNumero(cost_text) == 0 ||atoi(cost_text) != 50 || esNumero(index_text) == 0) {
@@ -868,7 +868,7 @@ int interpretarRutaMapa(unsigned char *trama, int index_esperat,int *nombre_tota
 int comprarMapa(ConfiguracioOdisseu *configuracio, int socket_actual,int quantitat) {
     Ruta ruta = {0}, *rutes_rebudes = NULL, *rutes_ampliades = NULL;
     unsigned char peticio[MIDA_TRAMA] = {0}, resposta[MIDA_TRAMA] = {0}; //REVISAR
-    unsigned char dades_error[MIDA_DADES_TRAMA + 1] = {0};
+    char dades_error[MIDA_DADES_TRAMA + 1] = {0};
     char *missatge = NULL;
     int resultat = 0, nombre_total = 0, nombre_rutes = 0;
     int index = 1, sense_rutes = 0, i = 0, longitud = 0;
@@ -887,7 +887,7 @@ int comprarMapa(ConfiguracioOdisseu *configuracio, int socket_actual,int quantit
         return -1;
     }
 
-    resultat = crearTrama(peticio, TIPUS_COMPRAR_MAPA,FLAGS_PETICIO_TEXTUAL,(unsigned char *) "1", 1);
+    resultat = crearTrama(peticio, TIPUS_COMPRAR_MAPA,FLAGS_PETICIO_TEXTUAL,"1", 1);
     if (resultat == TRAMA_CORRECTA) {
         resultat = enviarTrama(socket_actual, peticio);
     }
@@ -898,7 +898,7 @@ int comprarMapa(ConfiguracioOdisseu *configuracio, int socket_actual,int quantit
         longitud = resposta[POSICIO_LONGITUD_DADES];
         obtenirDades(resposta, dades_error);
         dades_error[longitud] = '\0';
-        caracters_escrits = asprintf(&missatge, "Map purchase failed: %s.\n", (char *) dades_error);
+        caracters_escrits = asprintf(&missatge, "Map purchase failed: %s.\n", dades_error);
         if (caracters_escrits >= 0) {
             write(1, missatge, caracters_escrits);
             free(missatge);
@@ -1002,7 +1002,7 @@ int mostrarMapa(ConfiguracioOdisseu *configuracio) {
  ************************************************/
 int sortirIlla(ConfiguracioOdisseu *configuracio, int *socket_actual) {
     unsigned char peticio[MIDA_TRAMA] = {0}, resposta[MIDA_TRAMA] = {0}; //REVISAR
-    unsigned char dades[MIDA_DADES_TRAMA + 1] = {0};
+    char dades[MIDA_DADES_TRAMA + 1] = {0};
     int resultat = 0, longitud = 0;
 
     resultat = crearTrama(peticio, TIPUS_SORTIDA_ILLA,FLAGS_PETICIO_TEXTUAL, NULL, 0);
@@ -1035,7 +1035,7 @@ int sortirIlla(ConfiguracioOdisseu *configuracio, int *socket_actual) {
         escriureMissatge("Island rejected the departure.\n");
         return -1;
     }
-    if (resposta[POSICIO_FLAGS] != FLAGS_RESPOSTA_CORRECTA ||longitud != 2 || strcmp((char *) dades, "OK") != 0) {
+    if (resposta[POSICIO_FLAGS] != FLAGS_RESPOSTA_CORRECTA ||longitud != 2 || strcmp(dades, "OK") != 0) {
         close(*socket_actual);
         *socket_actual = -1;
         configuracio->tipus_connexio = SENSE_CONNEXIO;
@@ -1107,7 +1107,7 @@ int navegarEntreIlles(ConfiguracioOdisseu *configuracio, int *socket_actual, cha
  *
  ************************************************/
 int interpretarEntradaMercat(unsigned char *trama, int index_esperat,int *nombre_total, Producte *producte,int *es_mapa) {
-    unsigned char dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
+    char dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
     char *index_text = NULL, *total_text = NULL, *nom_producte = NULL;
     char *quantitat_text = NULL, *preu_text = NULL, *camp_extra = NULL;
     int longitud = 0, index = 0, total = 0, llargada_nom = 0;
@@ -1121,7 +1121,7 @@ int interpretarEntradaMercat(unsigned char *trama, int index_esperat,int *nombre
     }
     dades[longitud] = '\0';
 
-    index_text = strtok((char *) dades, "&");
+    index_text = strtok(dades, "&");
     total_text = strtok(NULL, "&");
     nom_producte = strtok(NULL, "&");
     quantitat_text = strtok(NULL, "&");
@@ -1260,7 +1260,7 @@ int llistarMercat(ConfiguracioOdisseu *configuracio, int socket_actual) {
  *
  ************************************************/
 int rebreRespostaComerc(unsigned char *resposta, int tipus,char *producte_esperat, int quantitat_esperada,int *valor) {
-    unsigned char dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
+    char dades[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
     char *estat = NULL, *producte = NULL, *quantitat_text = NULL;
     char *valor_text = NULL, *camp_extra = NULL, *missatge = NULL;
     int longitud = 0, caracters_escrits = 0;
@@ -1274,7 +1274,7 @@ int rebreRespostaComerc(unsigned char *resposta, int tipus,char *producte_espera
     }
     dades[longitud] = '\0';
     if (resposta[POSICIO_FLAGS] == FLAGS_RESPOSTA_ERROR) {
-        caracters_escrits = asprintf(&missatge,"Market operation failed: %s.\n", (char *) dades);
+        caracters_escrits = asprintf(&missatge,"Market operation failed: %s.\n", dades);
         if (caracters_escrits >= 0) {
             write(1, missatge, caracters_escrits);
             free(missatge);
@@ -1285,7 +1285,7 @@ int rebreRespostaComerc(unsigned char *resposta, int tipus,char *producte_espera
         return -1;
     }
 
-    estat = strtok((char *) dades, "&");
+    estat = strtok(dades, "&");
     producte = strtok(NULL, "&");
     quantitat_text = strtok(NULL, "&");
     valor_text = strtok(NULL, "&");
@@ -1364,7 +1364,7 @@ int comprarAliment(ConfiguracioOdisseu *configuracio, int socket_actual, char *n
     if (longitud < 0 || longitud > MIDA_DADES_TRAMA) {
         resultat = -1;
     } else {
-        resultat = crearTrama(peticio, TIPUS_COMPRAR, FLAGS_PETICIO_TEXTUAL,(unsigned char *) dades, longitud);
+        resultat = crearTrama(peticio, TIPUS_COMPRAR, FLAGS_PETICIO_TEXTUAL,dades, longitud);
     }
     free(dades);
     if (resultat == TRAMA_CORRECTA) {
@@ -1444,7 +1444,7 @@ int vendreAliment(ConfiguracioOdisseu *configuracio, int socket_actual,char *nom
     if (longitud < 0 || longitud > MIDA_DADES_TRAMA) {
         resultat = -1;
     } else {
-        resultat = crearTrama(peticio, TIPUS_VENDRE, FLAGS_PETICIO_TEXTUAL,(unsigned char *) dades, longitud);
+        resultat = crearTrama(peticio, TIPUS_VENDRE, FLAGS_PETICIO_TEXTUAL,dades, longitud);
     }
     free(dades);
     if (resultat == TRAMA_CORRECTA) {

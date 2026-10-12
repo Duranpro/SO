@@ -65,7 +65,7 @@ int respondreErrorOperacio(int socket_client, unsigned char tipus, char *motiu) 
     while (motiu[longitud] != '\0') {
         longitud++;
     }
-    resultat = crearTrama(resposta, tipus, FLAGS_RESPOSTA_ERROR, (unsigned char *) motiu, longitud);
+    resultat = crearTrama(resposta, tipus, FLAGS_RESPOSTA_ERROR, motiu, longitud);
     if (resultat == TRAMA_CORRECTA) {
         resultat = enviarTrama(socket_client, resposta);
     }
@@ -85,9 +85,10 @@ int respondreErrorOperacio(int socket_client, unsigned char tipus, char *motiu) 
  *
  ************************************************/
 int gestionarLlistaViatges(int socket_client, ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odisseu, unsigned char *peticio, int *viatge_anterior) {
-    unsigned char resposta[MIDA_TRAMA] = {0}, sense_viatges[] = "0"; //REVISAR
-    int *indexs_disponibles = NULL;
+    unsigned char resposta[MIDA_TRAMA] = {0};
+    char sense_viatges[] = "0"; //REVISAR
     char *dades = NULL, *missatge = NULL;
+    int *indexs_disponibles = NULL;
     int nombre_disponibles = 0, i = 0, index = 0, resultat = 0;
     int caracters_escrits = 0;
 
@@ -146,7 +147,7 @@ int gestionarLlistaViatges(int socket_client, ConfiguracioItaca *configuracio, p
         if (caracters_escrits < 0 || caracters_escrits > MIDA_DADES_TRAMA) {
             resultat = -1;
         } else {
-            resultat = crearTrama(resposta, TIPUS_LLISTAR_VIATGES, FLAGS_RESPOSTA_CORRECTA,(unsigned char *) dades, caracters_escrits);
+            resultat = crearTrama(resposta, TIPUS_LLISTAR_VIATGES, FLAGS_RESPOSTA_CORRECTA,dades, caracters_escrits);
         }
         if (resultat == TRAMA_CORRECTA) {
             resultat = enviarTrama(socket_client, resposta);
@@ -171,9 +172,9 @@ int gestionarLlistaViatges(int socket_client, ConfiguracioItaca *configuracio, p
  *
  ************************************************/
 int gestionarAcceptacio(int socket_client, ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odisseu,unsigned char *peticio) {
-    unsigned char dades_peticio[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
-    unsigned char resposta[MIDA_TRAMA] = {0};
     Viatge *viatge = NULL;
+    unsigned char resposta[MIDA_TRAMA] = {0};
+    char dades_peticio[MIDA_DADES_TRAMA + 1] = {0}; //REVISAR
     char *nom_assignat = NULL, *dades_resposta = NULL, *missatge = NULL;
     int longitud = 0, identificador = 0, i = 0, resultat = 0;
     int caracters_escrits = 0, disponible = 0;
@@ -192,7 +193,7 @@ int gestionarAcceptacio(int socket_client, ConfiguracioItaca *configuracio, pthr
             return respondreErrorOperacio(socket_client, TIPUS_ACCEPTAR_VIATGE, MOTIU_DADES_INVALIDES);
         }
     }
-    identificador = atoi((char *) dades_peticio);
+    identificador = atoi(dades_peticio);
     if (identificador <= 0) {
         return respondreErrorOperacio(socket_client, TIPUS_ACCEPTAR_VIATGE, MOTIU_DADES_INVALIDES);
     }
@@ -228,7 +229,7 @@ int gestionarAcceptacio(int socket_client, ConfiguracioItaca *configuracio, pthr
         return respondreErrorOperacio(socket_client, TIPUS_ACCEPTAR_VIATGE, "VOYAGE_NOT_AVAILABLE");
     }
 
-    resultat = crearTrama(resposta, TIPUS_ACCEPTAR_VIATGE, FLAGS_RESPOSTA_CORRECTA, (unsigned char *) dades_resposta, caracters_escrits);
+    resultat = crearTrama(resposta, TIPUS_ACCEPTAR_VIATGE, FLAGS_RESPOSTA_CORRECTA, dades_resposta, caracters_escrits);
     free(dades_resposta);
     if (resultat == TRAMA_CORRECTA) {
         resultat = enviarTrama(socket_client, resposta);
@@ -253,7 +254,8 @@ int gestionarAcceptacio(int socket_client, ConfiguracioItaca *configuracio, pthr
  *
  ************************************************/
 int gestionarDesconnexio(int socket_client, char *nom_odisseu, unsigned char *peticio, int *finalitzar_connexio) {
-    unsigned char resposta[MIDA_TRAMA] = {0}, resposta_ok[] = "OK"; //REVISAR
+    unsigned char resposta[MIDA_TRAMA] = {0};
+    char resposta_ok[] = "OK"; //REVISAR
     char *missatge = NULL;
     int resultat = 0, caracters_escrits = 0;
 
@@ -293,8 +295,8 @@ void *atendreOdisseu(void *argument) {
     ConfiguracioItaca *configuracio = NULL;
     pthread_mutex_t *mutex_viatges = NULL;
     unsigned char trama[MIDA_TRAMA] = {0}, resposta[MIDA_TRAMA] = {0}; //REVISAR
-    unsigned char nom_odisseu[MIDA_DADES_TRAMA + 1] = {0};
-    unsigned char resposta_ok[] = "OK";
+    char nom_odisseu[MIDA_DADES_TRAMA + 1] = {0};
+    char resposta_ok[] = "OK";
     char *motiu = NULL, *missatge = NULL;
     int socket_client = -1, resultat = 0, longitud = 0, i = 0;
     int dades_valides = 1, longitud_motiu = 0, caracters_escrits = 0;
@@ -353,7 +355,7 @@ void *atendreOdisseu(void *argument) {
         while (motiu[longitud_motiu] != '\0') {
             longitud_motiu++;
         }
-        resultat = crearTrama(resposta, TIPUS_CONNECTAR_ITACA, FLAGS_RESPOSTA_ERROR,(unsigned char *) motiu, longitud_motiu);
+        resultat = crearTrama(resposta, TIPUS_CONNECTAR_ITACA, FLAGS_RESPOSTA_ERROR,motiu, longitud_motiu);
         if (resultat == TRAMA_CORRECTA) {
             enviarTrama(socket_client, resposta);
         }
@@ -368,7 +370,7 @@ void *atendreOdisseu(void *argument) {
         return NULL;
     }
 
-    caracters_escrits = asprintf(&missatge, ">>> %s connected to Ithaca.\n", (char *) nom_odisseu);
+    caracters_escrits = asprintf(&missatge, ">>> %s connected to Ithaca.\n", nom_odisseu);
     if (caracters_escrits >= 0) {
         write(1, missatge, caracters_escrits);
         free(missatge);
@@ -377,7 +379,7 @@ void *atendreOdisseu(void *argument) {
     pthread_mutex_lock(mutex_viatges);
     for (i = 0; i < configuracio->nombre_viatges &&
                 viatge_anterior == 0; i++) {
-        if (configuracio->viatges[i].disponible == 0 &&configuracio->viatges[i].fracassat == 0 &&configuracio->viatges[i].odisseu_assignat != NULL &&strcmp(configuracio->viatges[i].odisseu_assignat, (char *) nom_odisseu) == 0) {
+        if (configuracio->viatges[i].disponible == 0 &&configuracio->viatges[i].fracassat == 0 &&configuracio->viatges[i].odisseu_assignat != NULL &&strcmp(configuracio->viatges[i].odisseu_assignat, nom_odisseu) == 0) {
             viatge_anterior = 1;
         }
     }
@@ -401,11 +403,11 @@ void *atendreOdisseu(void *argument) {
             }
             resultat = TRAMA_ERROR_GENERAL;
         } else if (trama[POSICIO_TIPUS] == TIPUS_LLISTAR_VIATGES) {
-            resultat = gestionarLlistaViatges(socket_client, configuracio, mutex_viatges, (char *) nom_odisseu, trama, &viatge_anterior);
+            resultat = gestionarLlistaViatges(socket_client, configuracio, mutex_viatges, nom_odisseu, trama, &viatge_anterior);
         } else if (trama[POSICIO_TIPUS] == TIPUS_ACCEPTAR_VIATGE) {
-            resultat = gestionarAcceptacio(socket_client, configuracio, mutex_viatges,(char *) nom_odisseu, trama);
+            resultat = gestionarAcceptacio(socket_client, configuracio, mutex_viatges,nom_odisseu, trama);
         } else if (trama[POSICIO_TIPUS] == TIPUS_DESCONNECTAR_ITACA) {
-            resultat = gestionarDesconnexio(socket_client, (char *) nom_odisseu, trama, &finalitzar_connexio);
+            resultat = gestionarDesconnexio(socket_client, nom_odisseu, trama, &finalitzar_connexio);
         } else {
             resultat = crearNack(resposta, MOTIU_TIPUS_INVALID);
             if (resultat == TRAMA_CORRECTA) {

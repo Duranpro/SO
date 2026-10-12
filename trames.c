@@ -23,7 +23,7 @@
  * @Retorn: Retorna 0 si crea la trama i -1 si els parametres no son valids.
  *
  ************************************************/
-int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, unsigned char *dades, int longitud) { //REVISAR
+int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, char *dades, int longitud) { //REVISAR
     if (trama == NULL || longitud < 0 || longitud > MIDA_DADES_TRAMA) {
         return TRAMA_ERROR_GENERAL;
     }
@@ -50,7 +50,7 @@ int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, u
  * @Retorn: Retorna 0 si copia les dades i -1 si els parametres no son valids.
  *
  ************************************************/
-int obtenirDades(unsigned char *trama, unsigned char *dades) { //REVISAR
+int obtenirDades(unsigned char *trama, char *dades) { //REVISAR
     int longitud = 0;
 
     if (trama == NULL) {
@@ -139,7 +139,7 @@ int crearNack(unsigned char *trama, char *motiu) { //REVISAR
         longitud++;
     }
 
-    return crearTrama(trama, TIPUS_NACK, FLAGS_RESPOSTA_ERROR,(unsigned char *) motiu, longitud);
+    return crearTrama(trama, TIPUS_NACK, FLAGS_RESPOSTA_ERROR,motiu, longitud);
 }
 
 /***********************************************

@@ -5,7 +5,7 @@
  * @Proposit: Carrega i allibera la configuracio d'Odysseus.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 21/09/2026
+ * @Data ultima modificacio: 15/10/2026
  *
  ************************************************/
 
@@ -72,6 +72,15 @@ int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
     }
     configuracio->port_illa_inicial = atoi(camp);
     free(linia);
+
+    if (strlen(configuracio->ip_illa_inicial) >= MIDA_IP) {
+        return -1;
+    }
+    strcpy(configuracio->ubicacio_actual, "Ithaca");
+    strcpy(configuracio->illes_conegudes[0].nom, "Aeaea");
+    strcpy(configuracio->illes_conegudes[0].ip, configuracio->ip_illa_inicial);
+    configuracio->illes_conegudes[0].port = configuracio->port_illa_inicial;
+    configuracio->num_illes_conegudes = 1;
 
     return 0;
 }
@@ -165,13 +174,21 @@ void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
         }
     }
     free(configuracio->aliments);
+    free(configuracio->mercat_actual);
+    free(configuracio->viatge_actiu.nom_objecte);
+    free(configuracio->viatge_actiu.illa_desti);
 
     configuracio->ruta_carpeta = NULL;
     configuracio->nom = NULL;
     configuracio->ip_itaca = NULL;
     configuracio->ip_illa_inicial = NULL;
     configuracio->aliments = NULL;
+    configuracio->mercat_actual = NULL;
+    configuracio->num_productes_mercat = 0;
     configuracio->nombre_aliments = 0;
+    configuracio->viatge_actiu.nom_objecte = NULL;
+    configuracio->viatge_actiu.illa_desti = NULL;
+    configuracio->te_viatge = 0;
 }
 
 /***********************************************

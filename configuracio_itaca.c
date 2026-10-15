@@ -5,7 +5,7 @@
  * @Proposit: Carrega i allibera la configuracio i els viatges d'Ithaca.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 18/09/2026
+ * @Data ultima modificacio: 15/10/2026
  *
  ************************************************/
 
@@ -113,6 +113,9 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     viatge->ruta_fitxer = NULL;
     viatge->illa_desti = NULL;
     viatge->recompensa = 0;
+    viatge->disponible = 1;
+    viatge->fracassat = 0;
+    viatge->odysseus_assignat[0] = '\0';
     configuracio->nombre_viatges++;
 
     camp = strtok(linia, " ");

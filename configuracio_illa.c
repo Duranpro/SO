@@ -5,11 +5,35 @@
  * @Proposit: Carrega, valida i allibera les dades d'una illa.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 21/09/2026
- * @Data ultima modificacio: 21/09/2026
+ * @Data ultima modificacio: 15/10/2026
  *
  ************************************************/
 
 #include "configuracio_illa.h"
+
+/***********************************************
+ * @Finalitat: Escriu nomes la quantitat d'un registre del stock binari.
+ * @Parametres: in: ruta = fitxer de stock; index = posicio des de zero.
+ *              in: nova_quantitat = quantitat que es vol conservar.
+ * @Retorn: Retorna 0 si s'escriu i -1 si falla alguna operacio.
+ ************************************************/
+int actualitzarQuantitatStock(char *ruta, int index, int nova_quantitat) {
+    int fd = -1, desplacament = 0, resultat = -1;
+
+    desplacament = index * (MIDA_NOM_PRODUCTE + 2 * sizeof(int)) + MIDA_NOM_PRODUCTE;
+    fd = open(ruta, O_WRONLY);
+    if (fd < 0) {
+        return -1;
+    }
+    if (lseek(fd, desplacament, SEEK_SET) == desplacament &&
+        write(fd, &nova_quantitat, sizeof(int)) == sizeof(int)) {
+        resultat = 0;
+    }
+    if (close(fd) != 0) {
+        resultat = -1;
+    }
+    return resultat;
+}
 
 /***********************************************
  *

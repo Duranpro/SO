@@ -3,11 +3,37 @@
  * @Proposit: Implementa les operacions comunes dels tres processos.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 21/09/2026
- * @Data ultima modificacio: 21/09/2026
+ * @Data ultima modificacio: 15/10/2026
  *
  ************************************************/
 
 #include "comun.h"
+
+/***********************************************
+ *
+ * @Finalitat: Comprova si un text representa un enter no negatiu dins del rang d'int.
+ * @Parametres: in: text = text que es vol comprovar.
+ * @Retorn: Retorna 1 si es un numero i 0 altrament.
+ *
+ ************************************************/
+int esNumero(char *text) {
+    int i = 0, valor = 0;
+
+    if (text == NULL || text[0] == '\0') {
+        return 0;
+    }
+    while (text[i] != '\0') {
+        if (text[i] < '0' || text[i] > '9') {
+            return 0;
+        }
+        if (valor > (INT_MAX - (text[i] - '0')) / 10) {
+            return 0;
+        }
+        valor = valor * 10 + text[i] - '0';
+        i++;
+    }
+    return 1;
+}
 
 /***********************************************
  *

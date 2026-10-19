@@ -5,7 +5,7 @@
  * @Proposit: Conte el servidor concurrent del proces Ithaca.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 15/10/2026
+ * @Data ultima modificacio: 19/10/2026
  *
  ************************************************/
 
@@ -19,44 +19,43 @@
 #include "configuracio_itaca.h"
 #include "trames.h"
 #include "xarxa.h"
+#include "gestio_navegants.h"
 
-int finalitzar_programa = 0;
+volatile sig_atomic_t finalitzar_programa = 0;
 int fd_servidor = -1;
 
 typedef struct {
-    int fd_client;
+    int fd_navegant;
+    int fd_finalitzacio;
+    FilNavegant *control;
     ConfiguracioItaca *configuracio;
     pthread_mutex_t *mutex_viatges;
-} DadesClientIthaca;
+} DadesNavegantIthaca;
 
 /***********************************************
  *
- * @Finalitat: Indica la finalitzacio i tanca el servidor per sortir d'accept.
+ * @Finalitat: Indica la finalitzacio que comprova el bucle del servidor.
  * @Parametres: in: senyal = senyal rebut pel proces.
  * @Retorn: ----.
  *
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
     finalitzar_programa = 1;
-    if (fd_servidor >= 0) {
-        close(fd_servidor);
-        fd_servidor = -1;
-    }
 }
 
 /***********************************************
  *
  * @Finalitat: Marca els viatges anteriors com a fracassats i envia els disponibles.
- * @Parametres: in: fd_client = descriptor del client.
+ * @Parametres: in: fd_navegant = descriptor del navegant.
  *              in: peticio = trama LIST VOYAGES rebuda.
  *              in: configuracio = viatges compartits d'Ithaca.
  *              in/out: mutex_viatges = mutex de disponibilitat i assignacio.
- *              in: nom_odysseus = nom identificat del client.
+ *              in: nom_odysseus = nom identificat del navegant.
  *              in: viatge_actual = viatge acceptat en aquesta connexio, o 0.
  * @Retorn: Retorna 0 si envia la resposta i -1 si falla l'enviament.
  *
  ************************************************/
-int gestionarListVoyages(int fd_client, unsigned char *peticio,
+int gestionarListVoyages(int fd_navegant, unsigned char *peticio,
                          ConfiguracioItaca *configuracio,
                          pthread_mutex_t *mutex_viatges, char *nom_odysseus,
                          int viatge_actual) {
@@ -67,22 +66,22 @@ int gestionarListVoyages(int fd_client, unsigned char *peticio,
     Viatge *viatge = NULL;
 
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO) {
-        return enviarNack(fd_client, "INVALID_FLAGS");
+        return enviarNack(fd_navegant, "INVALID_FLAGS");
     }
     if (peticio[POSICIO_LONGITUD] != 0) {
-        return enviarNack(fd_client, "INVALID_LENGTH");
+        return enviarNack(fd_navegant, "INVALID_LENGTH");
     }
     if (viatge_actual != 0) {
         crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,
                    (unsigned char *)"Ja tens un viatge actiu", 23);
-        return enviarTrama(fd_client, trama);
+        return enviarTrama(fd_navegant, trama);
     }
     if (configuracio->nombre_viatges > 0) {
         indexs_disponibles = malloc(configuracio->nombre_viatges * sizeof(int));
         if (indexs_disponibles == NULL) {
             crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,
                        (unsigned char *)"Sense memoria", 13);
-            return enviarTrama(fd_client, trama);
+            return enviarTrama(fd_navegant, trama);
         }
     }
     /* En tornar a llistar, fracassen els viatges anteriors del mateix navegant. */
@@ -106,7 +105,7 @@ int gestionarListVoyages(int fd_client, unsigned char *peticio,
     if (total == 0) {
         free(indexs_disponibles);
         crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_OK, (unsigned char *)"0", 1);
-        return enviarTrama(fd_client, trama);
+        return enviarTrama(fd_navegant, trama);
     }
     for (i = 0; i < total && resultat == 0; i++) {
         viatge = &configuracio->viatges[indexs_disponibles[i]];
@@ -117,10 +116,10 @@ int gestionarListVoyages(int fd_client, unsigned char *peticio,
                        (unsigned char *)dades, longitud) != 0) {
             crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,
                        (unsigned char *)"Viatge massa llarg", 18);
-            resultat = enviarTrama(fd_client, trama);
+            resultat = enviarTrama(fd_navegant, trama);
             break;
         }
-        resultat = enviarTrama(fd_client, trama);
+        resultat = enviarTrama(fd_navegant, trama);
     }
     free(indexs_disponibles);
     return resultat;
@@ -128,17 +127,17 @@ int gestionarListVoyages(int fd_client, unsigned char *peticio,
 
 /***********************************************
  *
- * @Finalitat: Assigna un viatge disponible al client que l'ha demanat.
- * @Parametres: in: fd_client = descriptor del client.
+ * @Finalitat: Assigna un viatge disponible al navegant que l'ha demanat.
+ * @Parametres: in: fd_navegant = descriptor del navegant.
  *              in: peticio = trama ACCEPT rebuda.
  *              in/out: configuracio = viatges compartits d'Ithaca.
  *              in/out: mutex_viatges = mutex de disponibilitat i assignacio.
- *              in: nom_odysseus = nom identificat del client.
+ *              in: nom_odysseus = nom identificat del navegant.
  *              out: viatge_actual = identificador del viatge acceptat.
  * @Retorn: Retorna 0 si envia la resposta i -1 si falla l'enviament.
  *
  ************************************************/
-int gestionarAccept(int fd_client, unsigned char *peticio,
+int gestionarAccept(int fd_navegant, unsigned char *peticio,
                      ConfiguracioItaca *configuracio,
                      pthread_mutex_t *mutex_viatges, char *nom_odysseus,
                      int *viatge_actual) {
@@ -150,20 +149,20 @@ int gestionarAccept(int fd_client, unsigned char *peticio,
     Viatge *viatge = NULL;
 
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO) {
-        return enviarNack(fd_client, "INVALID_FLAGS");
+        return enviarNack(fd_navegant, "INVALID_FLAGS");
     }
     if (longitud == 0 || longitud > MIDA_DADES) {
-        return enviarNack(fd_client, "INVALID_LENGTH");
+        return enviarNack(fd_navegant, "INVALID_LENGTH");
     }
     memcpy(dades, peticio + POSICIO_DADES, longitud);
     dades[longitud] = '\0';
     if ((int)strlen(dades) != longitud || esNumero(dades) == 0) {
-        return enviarNack(fd_client, "INVALID_DATA");
+        return enviarNack(fd_navegant, "INVALID_DATA");
     }
     if (*viatge_actual != 0) {
         crearTrama(trama, TIPUS_ACCEPT, FLAG_RESPOSTA_ERROR,
                    (unsigned char *)"Ja tens un viatge actiu", 23);
-        return enviarTrama(fd_client, trama);
+        return enviarTrama(fd_navegant, trama);
     }
     strcpy(resposta, "ACCEPT invalid");
     if (peticio[POSICIO_FLAGS] == FLAG_PETICIO && longitud > 0 && longitud <= MIDA_DADES) {
@@ -206,32 +205,32 @@ int gestionarAccept(int fd_client, unsigned char *peticio,
         }
     }
     crearTrama(trama, TIPUS_ACCEPT, flags, (unsigned char *)resposta, strlen(resposta));
-    return enviarTrama(fd_client, trama);
+    return enviarTrama(fd_navegant, trama);
 }
 
 /***********************************************
  *
  * @Finalitat: Confirma la sortida d'Ithaca sense modificar el viatge assignat.
- * @Parametres: in: fd_client = descriptor del client.
+ * @Parametres: in: fd_navegant = descriptor del navegant.
  *              in: peticio = trama de desconnexio rebuda.
- *              in: nom_odysseus = nom identificat del client.
+ *              in: nom_odysseus = nom identificat del navegant.
  * @Retorn: Retorna 1 si es pot tancar, 0 si es rebutja i -1 si falla l'enviament.
  *
  ************************************************/
-int gestionarDesconnexio(int fd_client, unsigned char *peticio, char *nom_odysseus) {
+int gestionarDesconnexio(int fd_navegant, unsigned char *peticio, char *nom_odysseus) {
     unsigned char trama[MIDA_TRAMA];
     char missatge[MIDA_NOM_ODYSSEUS + 100];
     int longitud = 0;
 
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO) {
-        return enviarNack(fd_client, "INVALID_FLAGS");
+        return enviarNack(fd_navegant, "INVALID_FLAGS");
     }
     if (peticio[POSICIO_LONGITUD] != 0) {
-        return enviarNack(fd_client, "INVALID_LENGTH");
+        return enviarNack(fd_navegant, "INVALID_LENGTH");
     }
     crearTrama(trama, TIPUS_DESCONNEXIO_ITHACA, FLAG_RESPOSTA_OK,
                (unsigned char *)"OK", 2);
-    if (enviarTrama(fd_client, trama) != 0) {
+    if (enviarTrama(fd_navegant, trama) != 0) {
         return -1;
     }
     longitud = snprintf(missatge, sizeof(missatge),
@@ -243,53 +242,60 @@ int gestionarDesconnexio(int fd_client, unsigned char *peticio, char *nom_odysse
 /***********************************************
  *
  * @Finalitat: Identifica un Odysseus i aten les operacions del port d'Ithaca.
- * @Parametres: in: arg = parametres reservats per a aquest client.
- * @Retorn: Retorna NULL quan acaba l'atencio del client.
+ * @Parametres: in: arg = parametres reservats per a aquest navegant.
+ * @Retorn: Retorna NULL quan acaba l'atencio del navegant.
  *
  ************************************************/
 void *atendreOdysseus(void *arg) {
     unsigned char trama[MIDA_TRAMA];
     char nom_odysseus[MIDA_DADES + 1], *missatge = NULL;
-    DadesClientIthaca *dades_client = arg;
-    ConfiguracioItaca *configuracio = dades_client->configuracio;
-    pthread_mutex_t *mutex_viatges = dades_client->mutex_viatges;
-    int fd_client = dades_client->fd_client, longitud = 0, caracters_escrits = 0;
+    DadesNavegantIthaca *dades_navegant = arg;
+    FilNavegant *control = dades_navegant->control;
+    ConfiguracioItaca *configuracio = dades_navegant->configuracio;
+    pthread_mutex_t *mutex_viatges = dades_navegant->mutex_viatges;
+    int fd_navegant = dades_navegant->fd_navegant, longitud = 0, caracters_escrits = 0;
+    int fd_finalitzacio = dades_navegant->fd_finalitzacio;
     int resultat = 0, viatge_actual = 0;
 
     free(arg);
-    if (rebreTrama(fd_client, trama) != 0) {
-        close(fd_client);
+    if (esperarPeticioNavegant(fd_navegant, fd_finalitzacio) != 1 || rebreTrama(fd_navegant, trama) != 0) {
+        close(fd_navegant);
+        finalitzarNavegant(control);
         return NULL;
     }
     if (trama[POSICIO_TIPUS] != TIPUS_CONNECT_ITHACA) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
-            enviarNack(fd_client, "INVALID_TYPE");
+            enviarNack(fd_navegant, "INVALID_TYPE");
         }
-        close(fd_client);
+        close(fd_navegant);
+        finalitzarNavegant(control);
         return NULL;
     }
     longitud = trama[POSICIO_LONGITUD];
     if (trama[POSICIO_FLAGS] != FLAG_PETICIO ||
         longitud <= 0 || longitud > MIDA_DADES) {
         if (trama[POSICIO_FLAGS] != FLAG_PETICIO) {
-            enviarNack(fd_client, "INVALID_FLAGS");
+            enviarNack(fd_navegant, "INVALID_FLAGS");
         } else {
-            enviarNack(fd_client, "INVALID_LENGTH");
+            enviarNack(fd_navegant, "INVALID_LENGTH");
         }
-        close(fd_client);
+        close(fd_navegant);
+        finalitzarNavegant(control);
         return NULL;
     }
     memcpy(nom_odysseus, trama + POSICIO_DADES, longitud);
     nom_odysseus[longitud] = '\0';
     if ((int)strlen(nom_odysseus) != longitud || strchr(nom_odysseus, '&') != NULL) {
-        enviarNack(fd_client, "INVALID_DATA");
-        close(fd_client);
+        enviarNack(fd_navegant, "INVALID_DATA");
+        close(fd_navegant);
+        finalitzarNavegant(control);
         return NULL;
     }
     if (crearTrama(trama, TIPUS_CONNECT_ITHACA, FLAG_RESPOSTA_OK,
                    (unsigned char *)"OK", 2) != 0 ||
-        enviarTrama(fd_client, trama) != 0) {
-        close(fd_client);
+        enviarTrama(fd_navegant, trama) != 0) {
+        close(fd_navegant);
+        finalitzarNavegant(control);
         return NULL;
     }
     caracters_escrits = asprintf(&missatge, ">>> %s connected to Ithaca.\n",
@@ -298,26 +304,27 @@ void *atendreOdysseus(void *arg) {
         write(1, missatge, caracters_escrits);
         free(missatge);
     }
-    while (rebreTrama(fd_client, trama) == 0) {
+    while (esperarPeticioNavegant(fd_navegant, fd_finalitzacio) == 1 && rebreTrama(fd_navegant, trama) == 0) {
         if (trama[POSICIO_TIPUS] == TIPUS_NACK) {
             break;
         }
         if (trama[POSICIO_TIPUS] == TIPUS_LIST_VOYAGES) {
-            resultat = gestionarListVoyages(fd_client, trama, configuracio,
+            resultat = gestionarListVoyages(fd_navegant, trama, configuracio,
                                             mutex_viatges, nom_odysseus, viatge_actual);
         } else if (trama[POSICIO_TIPUS] == TIPUS_ACCEPT) {
-            resultat = gestionarAccept(fd_client, trama, configuracio,
+            resultat = gestionarAccept(fd_navegant, trama, configuracio,
                                        mutex_viatges, nom_odysseus, &viatge_actual);
         } else if (trama[POSICIO_TIPUS] == TIPUS_DESCONNEXIO_ITHACA) {
-            resultat = gestionarDesconnexio(fd_client, trama, nom_odysseus);
+            resultat = gestionarDesconnexio(fd_navegant, trama, nom_odysseus);
         } else {
-            resultat = enviarNack(fd_client, "INVALID_TYPE");
+            resultat = enviarNack(fd_navegant, "INVALID_TYPE");
         }
         if (resultat != 0) {
             break;
         }
     }
-    close(fd_client);
+    close(fd_navegant);
+    finalitzarNavegant(control);
     return NULL;
 }
 
@@ -331,11 +338,12 @@ void *atendreOdysseus(void *arg) {
  ************************************************/
 int main(int argc, char *argv[]) {
     ConfiguracioItaca configuracio = {0};
-    pthread_t fil;
+    RegistreNavegants navegants;
     pthread_mutex_t mutex_viatges;
     char *missatge = NULL, *nom_programa = argv[0];
-    int resultat = 0, caracters_escrits = 0, fd_client = -1, fils_creats = 0;
-    DadesClientIthaca *dades_client = NULL;
+    int resultat = 0, caracters_escrits = 0, fd_navegant = -1, preparat = 0;
+    DadesNavegantIthaca *dades_navegant = NULL;
+    FilNavegant *navegant = NULL;
 
     if (argc != 3) {
         caracters_escrits = asprintf(&missatge,"Usage: %s <config.dat> <voyages.dat>\n", nom_programa);
@@ -360,10 +368,17 @@ int main(int argc, char *argv[]) {
         alliberarConfiguracioItaca(&configuracio);
         return 1;
     }
+    if (iniciarNavegants(&navegants) != 0) {
+        write(2, "Error: registre de navegants.\n", strlen("Error: registre de navegants.\n"));
+        pthread_mutex_destroy(&mutex_viatges);
+        alliberarConfiguracioItaca(&configuracio);
+        return 1;
+    }
     signal(SIGINT, gestionarSigint);
     signal(SIGPIPE, SIG_IGN);
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);
     if (fd_servidor < 0) {
+        recollirNavegants(&navegants, 1);
         write(2, "Error: no s'ha pogut obrir el servidor d'Ithaca.\n",
               strlen("Error: no s'ha pogut obrir el servidor d'Ithaca.\n"));
         alliberarConfiguracioItaca(&configuracio);
@@ -377,28 +392,45 @@ int main(int argc, char *argv[]) {
     }
 
     while (finalitzar_programa == 0) {
-        fd_client = accept(fd_servidor, NULL, NULL);
-        if (fd_client < 0) {
+        recollirNavegants(&navegants, 0);
+        preparat = esperarNavegant(fd_servidor);
+        if (finalitzar_programa != 0) {
+            break;
+        }
+        if (preparat == 0) {
+            continue;
+        }
+        if (preparat < 0) {
+            write(2, "Error: select d'Ithaca.\n", strlen("Error: select d'Ithaca.\n"));
+            resultat = 1;
+            break;
+        }
+        fd_navegant = accept(fd_servidor, NULL, NULL);
+        if (fd_navegant < 0) {
             if (finalitzar_programa == 0) {
                 write(2, "Error: accept d'Ithaca.\n", strlen("Error: accept d'Ithaca.\n"));
                 resultat = 1;
             }
             break;
         }
-        dades_client = malloc(sizeof(*dades_client));
-        if (dades_client == NULL) {
-            write(2, "Error: malloc del client.\n", strlen("Error: malloc del client.\n"));
-            close(fd_client);
+        dades_navegant = malloc(sizeof(*dades_navegant));
+        if (dades_navegant == NULL) {
+            write(2, "Error: malloc del navegant.\n", strlen("Error: malloc del navegant.\n"));
+            close(fd_navegant);
         } else {
-            dades_client->fd_client = fd_client;
-            dades_client->configuracio = &configuracio;
-            dades_client->mutex_viatges = &mutex_viatges;
-            if (pthread_create(&fil, NULL, atendreOdysseus, dades_client) != 0) {
+            dades_navegant->fd_navegant = fd_navegant;
+            dades_navegant->fd_finalitzacio = navegants.finalitzacio[0];
+            dades_navegant->configuracio = &configuracio;
+            dades_navegant->mutex_viatges = &mutex_viatges;
+            navegant = reservarNavegant(&navegants);
+            dades_navegant->control = navegant;
+            if (navegant == NULL || pthread_create(&navegant->fil, NULL, atendreOdysseus, dades_navegant) != 0) {
                 write(2, "Error: pthread_create.\n", strlen("Error: pthread_create.\n"));
-                free(dades_client);
-                close(fd_client);
+                free(navegant);
+                free(dades_navegant);
+                close(fd_navegant);
             } else {
-                fils_creats = 1;
+                registrarNavegant(navegant);
             }
         }
     }
@@ -409,11 +441,9 @@ int main(int argc, char *argv[]) {
         free(missatge);
     }
 
-    /* Si hi ha hagut fils, els recursos compartits viuen fins a sortir del proces. */
-    if (fils_creats == 0) {
-        alliberarConfiguracioItaca(&configuracio);
-        pthread_mutex_destroy(&mutex_viatges);
-    }
+    recollirNavegants(&navegants, 1);
+    alliberarConfiguracioItaca(&configuracio);
+    pthread_mutex_destroy(&mutex_viatges);
     if (fd_servidor >= 0) {
         close(fd_servidor);
         fd_servidor = -1;

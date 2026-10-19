@@ -3,7 +3,7 @@
  * @Proposit: Defineix els tipus de dades basics de The Nostos System.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 15/10/2026
+ * @Data ultima modificacio: 19/10/2026
  *
  ************************************************/
 
@@ -67,6 +67,8 @@ typedef struct {
     IllaConeguda illes_conegudes[MAX_ILLES];
     int num_illes_conegudes;
     char ubicacio_actual[MIDA_NOM_ILLA];
+    int *viatges_consultats;
+    int nombre_viatges_consultats;
     int te_viatge;
     Viatge viatge_actiu;
 } ConfiguracioOdisseu;

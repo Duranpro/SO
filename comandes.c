@@ -5,7 +5,7 @@
  * @Proposit: Implementa el terminal i el parser de comandes d'Odysseus.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 23/09/2026
- * @Data ultima modificacio: 15/10/2026
+ * @Data ultima modificacio: 19/10/2026
  *
  ************************************************/
 
@@ -557,7 +557,18 @@ int executarBuy(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte,
         }
     }
     if (index_mercat < 0) {
-        return escriureMissatge("Error: consulta LIST MARKET per coneixer el preu de l'aliment.\n");
+        resultat = executarListMarket(configuracio, fd_illa, configuracio->ubicacio_actual);
+        if (resultat != 0) {
+            return resultat;
+        }
+        for (i = 0; i < configuracio->num_productes_mercat; i++) {
+            if (strcmp(configuracio->mercat_actual[i].nom, producte) == 0) {
+                index_mercat = i;
+            }
+        }
+        if (*fd_illa < 0 || index_mercat < 0) {
+            return escriureMissatge("Error: producte desconegut o mercat no disponible.\n");
+        }
     }
     if (configuracio->mercat_actual[index_mercat].preu > 0 &&
         quantitat > configuracio->diners / configuracio->mercat_actual[index_mercat].preu) {
@@ -978,6 +989,9 @@ int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
         memcpy(resposta, trama + POSICIO_DADES, 2);
         resposta[2] = '\0';
         if (strcmp(resposta, "OK") == 0) {
+            free(configuracio->viatges_consultats);
+            configuracio->viatges_consultats = NULL;
+            configuracio->nombre_viatges_consultats = 0;
             return escriureMissatge("Connected to Ithaca.\n");
         }
     }
@@ -997,8 +1011,8 @@ int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
 
 /***********************************************
  *
- * @Finalitat: Demana i mostra els viatges disponibles sense guardar-ne la llista.
- * @Parametres: in: configuracio = estat del viatge actiu.
+ * @Finalitat: Demana i mostra els viatges disponibles i conserva els IDs consultats.
+ * @Parametres: in/out: configuracio = estat del viatge i IDs de l'ultima consulta.
  *              in/out: fd_ithaca = descriptor de la connexio actual.
  * @Retorn: Retorna 0 si pot mostrar el resultat i -1 si falla la sortida.
  *
@@ -1007,6 +1021,7 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
     unsigned char trama[MIDA_TRAMA];
     char dades[MIDA_DADES + 1], missatge[MIDA_DADES + 100];
     char *camps[6], *camp = NULL;
+    int *viatges = NULL;
     int index = 1, total = 1, i = 0, longitud = 0, resultat = -1;
 
     if (configuracio->te_viatge == 1) {
@@ -1015,6 +1030,9 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
     if (*fd_ithaca < 0) {
         return escriureMissatge("Error: no estas connectat a Ithaca.\n");
     }
+    free(configuracio->viatges_consultats);
+    configuracio->viatges_consultats = NULL;
+    configuracio->nombre_viatges_consultats = 0;
     crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_PETICIO, NULL, 0);
     if (enviarTrama(*fd_ithaca, trama) == 0) {
         for (index = 1; index <= total; index++) {
@@ -1042,6 +1060,7 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
             dades[longitud] = '\0';
             if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR) {
                 snprintf(missatge, sizeof(missatge), "Error: %s\n", dades);
+                free(viatges);
                 return escriureMissatge(missatge);
             }
             if (trama[POSICIO_FLAGS] != FLAG_RESPOSTA_OK || (int)strlen(dades) != longitud ||
@@ -1066,7 +1085,15 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
             }
             if (index == 1) {
                 total = atoi(camps[1]);
+                if (total > INT_MAX / (int)sizeof(*viatges)) {
+                    break;
+                }
+                viatges = malloc(total * sizeof(*viatges));
+                if (viatges == NULL) {
+                    break;
+                }
                 if (escriureMissatge("--- AVAILABLE VOYAGES ---\n") != 0) {
+                    free(viatges);
                     return -1;
                 }
             }
@@ -1074,16 +1101,21 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
                 enviarNack(*fd_ithaca, "INVALID_DATA");
                 break;
             }
+            viatges[index - 1] = atoi(camps[2]);
             snprintf(missatge, sizeof(missatge), "%s. %s -> %s [%s]\n",
                       camps[2], camps[3], camps[4], camps[5]);
             if (escriureMissatge(missatge) != 0) {
+                free(viatges);
                 return -1;
             }
         }
         if (index > total) {
+            configuracio->viatges_consultats = viatges;
+            configuracio->nombre_viatges_consultats = total;
             return 0;
         }
     }
+    free(viatges);
     if (*fd_ithaca >= 0) {
         close(*fd_ithaca);
         *fd_ithaca = -1;
@@ -1112,6 +1144,14 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
     }
     if (configuracio->te_viatge == 1) {
         return escriureMissatge("Error: ja tens un viatge actiu.\n");
+    }
+    for (i = 0; i < configuracio->nombre_viatges_consultats; i++) {
+        if (configuracio->viatges_consultats[i] == identificador) {
+            break;
+        }
+    }
+    if (i == configuracio->nombre_viatges_consultats) {
+        return escriureMissatge("Error: tria un ID de l'ultim LIST VOYAGES.\n");
     }
     longitud = snprintf(dades, sizeof(dades), "%d", identificador);
     if (crearTrama(trama, TIPUS_ACCEPT, FLAG_PETICIO, (unsigned char *)dades, longitud) == 0 &&
@@ -1458,7 +1498,7 @@ int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *d
 int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa,
                  char *desti, int *finalitzar_programa) {
     char *missatge = NULL;
-    int index_desti = -1, longitud = 0;
+    int index_desti = -1, longitud = 0, resultat = 0;
 
     if (strcasecmp(configuracio->ubicacio_actual, "Ithaca") == 0) {
         if (strcasecmp(desti, "Aeaea") == 0) {
@@ -1494,8 +1534,12 @@ int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa
     }
     write(1, missatge, longitud);
     free(missatge);
-    if (arribarIlla(configuracio, fd_illa, &configuracio->illes_conegudes[index_desti], finalitzar_programa) < 0) {
+    resultat = arribarIlla(configuracio, fd_illa, &configuracio->illes_conegudes[index_desti], finalitzar_programa);
+    if (resultat < 0) {
         return -1;
+    }
+    if (resultat == 1) {
+        return escriureMissatge("Destination reached. The voyage remains active.\n");
     }
     return 0;
 }

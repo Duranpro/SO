@@ -5,7 +5,7 @@
  * @Proposit: Carrega i allibera la configuracio d'Odysseus.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 18/09/2026
- * @Data ultima modificacio: 15/10/2026
+ * @Data ultima modificacio: 19/10/2026
  *
  ************************************************/
 
@@ -175,6 +175,7 @@ void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
     }
     free(configuracio->aliments);
     free(configuracio->mercat_actual);
+    free(configuracio->viatges_consultats);
     free(configuracio->viatge_actiu.nom_objecte);
     free(configuracio->viatge_actiu.illa_desti);
 
@@ -185,6 +186,8 @@ void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
     configuracio->aliments = NULL;
     configuracio->mercat_actual = NULL;
     configuracio->num_productes_mercat = 0;
+    configuracio->viatges_consultats = NULL;
+    configuracio->nombre_viatges_consultats = 0;
     configuracio->nombre_aliments = 0;
     configuracio->viatge_actiu.nom_objecte = NULL;
     configuracio->viatge_actiu.illa_desti = NULL;

@@ -10,7 +10,7 @@
  * @Proposit: Implementa les operacions basiques de les trames Nostos.
  * @Autor/s: Antonio Duran Sabates i Arnau Gonzalez Hortelano
  * @Data creacio: 15/10/2026
- * @Data ultima modificacio: 15/10/2026
+ * @Data ultima modificacio: 19/10/2026
  *
  ************************************************/
 
@@ -46,41 +46,51 @@ int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags,
 
 /***********************************************
  *
- * @Finalitat: Escriu una trama sencera amb una unica crida a write.
+ * @Finalitat: Escriu una trama sencera completant les escriptures parcials.
  * @Parametres: in: fd = descriptor de sortida.
  *              in: trama = buffer de MIDA_TRAMA bytes.
  * @Retorn: Retorna 0 si escriu MIDA_TRAMA bytes i -1 altrament.
  *
  ************************************************/
 int enviarTrama(int fd, unsigned char *trama) {
-    int bytes_escrits = 0;
+    int bytes_escrits = 0, total_escrit = 0;
 
-    bytes_escrits = write(fd, trama, MIDA_TRAMA);
-    if (bytes_escrits == MIDA_TRAMA) {
-        return 0;
+    while (total_escrit < MIDA_TRAMA) {
+        bytes_escrits = write(fd, trama + total_escrit, MIDA_TRAMA - total_escrit);
+        if (bytes_escrits <= 0) {
+            return -1;
+        }
+        total_escrit += bytes_escrits;
     }
-    return -1;
+    return 0;
 }
 
 /***********************************************
  *
- * @Finalitat: Rep una trama sencera amb una unica crida a read.
+ * @Finalitat: Rep una trama sencera completant les lectures parcials.
  * @Parametres: in: fd = descriptor d'entrada.
  *              out: trama = buffer de MIDA_TRAMA bytes.
- * @Retorn: Retorna 0 si rep la trama, 1 si arriba EOF i -1 altrament.
+ * @Retorn: Retorna 0 si rep la trama, 1 si arriba EOF abans de llegir dades
+ *          i -1 si hi ha un error o la connexio es tanca amb la trama incompleta.
  *
  ************************************************/
 int rebreTrama(int fd, unsigned char *trama) {
-    int bytes_llegits = 0;
+    int bytes_llegits = 0, total_llegit = 0;
 
-    bytes_llegits = read(fd, trama, MIDA_TRAMA);
-    if (bytes_llegits == MIDA_TRAMA) {
-        return 0;
+    while (total_llegit < MIDA_TRAMA) {
+        bytes_llegits = read(fd, trama + total_llegit, MIDA_TRAMA - total_llegit);
+        if (bytes_llegits < 0) {
+            return -1;
+        }
+        if (bytes_llegits == 0) {
+            if (total_llegit == 0) {
+                return 1;
+            }
+            return -1;
+        }
+        total_llegit += bytes_llegits;
     }
-    if (bytes_llegits == 0) {
-        return 1;
-    }
-    return -1;
+    return 0;
 }
 
 /***********************************************

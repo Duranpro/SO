@@ -5,11 +5,13 @@
  * @Proposit: Implementa el terminal i el parser de comandes d'Odysseus.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 23/09/2026
- * @Data ultima modificacio: 19/10/2026
+ * @Data ultima modificacio: 20/10/2026
  *
  ************************************************/
 
 #include "comandes.h"
+
+#include <sys/time.h>
 
 /***********************************************
  * @Finalitat: Cerca una illa coneguda sense distingir majuscules.
@@ -1306,7 +1308,7 @@ int consumirProvisions(ConfiguracioOdisseu *configuracio, int quantitat) {
 
 /***********************************************
  *
- * @Finalitat: Espera DOCKED i consumeix una racio per cada cinc segons complets.
+ * @Finalitat: Espera DOCKED, aten MAP i STATUS i consumeix una racio cada cinc segons.
  * @Parametres: in/out: configuracio = nom i carrega real d'Odysseus.
  *              in/out: fd_illa = descriptor de la connexio amb la Island.
  *              in: nom_illa = nom de la Island on s'espera.
@@ -1317,19 +1319,65 @@ int consumirProvisions(ConfiguracioOdisseu *configuracio, int quantitat) {
 int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                 int *finalitzar_programa) {
     fd_set descriptors;
-    struct timeval temps;
+    struct timeval temps, inici_racio, ara;
+    Comanda comanda = {0};
     unsigned char trama[MIDA_TRAMA];
     char missatge[MIDA_NOM_ODYSSEUS + 100];
-    int fd_espera = *fd_illa, resultat = 0, provisions = 0;
+    char *linia = NULL;
+    int fd_espera = *fd_illa, resultat = 0, provisions = 0, resultat_analisi = 0;
+    long temps_transcorregut = 0, temps_restant = 0;
+
+    if (gettimeofday(&inici_racio, NULL) != 0) {
+        return -1;
+    }
+    if (escriureMissatge("$ ") != 0) {
+        return -1;
+    }
 
     while (*finalitzar_programa == 0 && fd_espera >= 0) {
+        if (gettimeofday(&ara, NULL) != 0) {
+            return -1;
+        }
+        temps_transcorregut = (ara.tv_sec - inici_racio.tv_sec) * 1000000L +
+                             ara.tv_usec - inici_racio.tv_usec;
+        while (temps_transcorregut >= 5000000L) {
+            provisions = consumirProvisions(configuracio, 7);
+            inici_racio.tv_sec += 5;
+            temps_transcorregut -= 5000000L;
+            snprintf(missatge, sizeof(missatge),
+                      ">>> The crew consumes another ration.\nProvisions remaining: %d kg\n", provisions);
+            if (escriureMissatge(missatge) != 0) {
+                return -1;
+            }
+            if (provisions == 0) {
+                close(*fd_illa);
+                *fd_illa = -1;
+                *finalitzar_programa = 1;
+                snprintf(missatge, sizeof(missatge),
+                          "The crew has run out of provisions.\nOdysseus %s has been lost at sea.\n",
+                          configuracio->nom);
+                return escriureMissatge(missatge);
+            }
+        }
         FD_ZERO(&descriptors);
         FD_SET(fd_espera, &descriptors);
-        temps.tv_sec = 5;
-        temps.tv_usec = 0;
+        FD_SET(0, &descriptors);
+        temps_restant = 5000000L - temps_transcorregut;
+        temps.tv_sec = temps_restant / 1000000L;
+        temps.tv_usec = temps_restant % 1000000L;
         resultat = select(fd_espera + 1, &descriptors, NULL, NULL, &temps);
         if (*finalitzar_programa != 0) {
             break;
+        }
+        if (resultat >= 0) {
+            if (gettimeofday(&ara, NULL) != 0) {
+                return -1;
+            }
+            temps_transcorregut = (ara.tv_sec - inici_racio.tv_sec) * 1000000L +
+                                 ara.tv_usec - inici_racio.tv_usec;
+            if (temps_transcorregut >= 5000000L) {
+                continue;
+            }
         }
         if (resultat > 0 && FD_ISSET(fd_espera, &descriptors)) {
             resultat = rebreTrama(fd_espera, trama);
@@ -1365,23 +1413,30 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
             snprintf(missatge, sizeof(missatge), ">>> %s has granted access to the port.\n", nom_illa);
             strcpy(configuracio->ubicacio_actual, nom_illa);
             return escriureMissatge(missatge);
-        } else if (resultat == 0) {
-            provisions = consumirProvisions(configuracio, 7);
-            snprintf(missatge, sizeof(missatge),
-                      ">>> The crew consumes another ration.\nProvisions remaining: %d kg\n", provisions);
-            if (escriureMissatge(missatge) != 0) {
+        } else if (resultat > 0 && FD_ISSET(0, &descriptors)) {
+            linia = llegirLinia(0);
+            if (*finalitzar_programa != 0 || linia == NULL) {
+                free(linia);
+                *finalitzar_programa = 1;
+                break;
+            }
+            resultat_analisi = analitzarComanda(linia, &comanda);
+            if (resultat_analisi == 1 && comanda.tipus == COMANDA_MAP) {
+                resultat = mostrarMapa(configuracio);
+            } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_STATUS) {
+                resultat = mostrarStatus(configuracio);
+            } else if (resultat_analisi == 1) {
+                resultat = escriureMissatge("Error: mentre esperes al port nomes pots consultar MAP i STATUS.\n");
+            } else {
+                resultat = mostrarResultatComanda(resultat_analisi, comanda.tipus);
+            }
+            free(linia);
+            linia = NULL;
+            comanda.argument = NULL;
+            if (resultat != 0 || escriureMissatge("$ ") != 0) {
                 return -1;
             }
-            if (provisions == 0) {
-                close(*fd_illa);
-                *fd_illa = -1;
-                *finalitzar_programa = 1;
-                snprintf(missatge, sizeof(missatge),
-                          "The crew has run out of provisions.\nOdysseus %s has been lost at sea.\n",
-                          configuracio->nom);
-                return escriureMissatge(missatge);
-            }
-        } else {
+        } else if (resultat < 0) {
             break;
         }
     }

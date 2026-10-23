@@ -35,5 +35,6 @@ void finalitzarNavegant(FilNavegant *navegant);
 void recollirNavegants(RegistreNavegants *registre, int finalitzar);
 int esperarNavegant(int fd_servidor);
 int esperarPeticioNavegant(int fd_navegant, int fd_finalitzacio);
+int rebreTramaNavegant(int fd_navegant, int fd_finalitzacio, unsigned char *trama);
 
 #endif

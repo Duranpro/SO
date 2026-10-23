@@ -258,7 +258,7 @@ void *atendreOdysseus(void *arg) {
     int resultat = 0, viatge_actual = 0;
 
     free(arg);
-    if (esperarPeticioNavegant(fd_navegant, fd_finalitzacio) != 1 || rebreTrama(fd_navegant, trama) != 0) {
+    if (rebreTramaNavegant(fd_navegant, fd_finalitzacio, trama) != 0) {
         close(fd_navegant);
         finalitzarNavegant(control);
         return NULL;
@@ -304,7 +304,7 @@ void *atendreOdysseus(void *arg) {
         write(1, missatge, caracters_escrits);
         free(missatge);
     }
-    while (esperarPeticioNavegant(fd_navegant, fd_finalitzacio) == 1 && rebreTrama(fd_navegant, trama) == 0) {
+    while (rebreTramaNavegant(fd_navegant, fd_finalitzacio, trama) == 0) {
         if (trama[POSICIO_TIPUS] == TIPUS_NACK) {
             break;
         }

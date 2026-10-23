@@ -428,7 +428,7 @@ void *atendreOdysseusIsland(void *arg) {
     int i = 0, atracat = 0, tipus = 0;
 
     free(arg);
-    if (esperarPeticioNavegant(fd_navegant, fd_finalitzacio) != 1 || rebreTrama(fd_navegant, trama) != 0) {
+    if (rebreTramaNavegant(fd_navegant, fd_finalitzacio, trama) != 0) {
         close(fd_navegant);
         finalitzarNavegant(control);
         return NULL;
@@ -483,8 +483,7 @@ void *atendreOdysseusIsland(void *arg) {
         if (resultat_port == 2 && confirmarEspera(port, fd_navegant, mutex_port) == 1) {
             resultat = notificarEntradaPort(&vaixell);
         }
-        while (resultat == 0 && esperarPeticioNavegant(fd_navegant, fd_finalitzacio) == 1 &&
-               rebreTrama(fd_navegant, trama) == 0) {
+        while (resultat == 0 && rebreTramaNavegant(fd_navegant, fd_finalitzacio, trama) == 0) {
             tipus = trama[POSICIO_TIPUS];
             if (tipus == TIPUS_NACK) {
                 break;

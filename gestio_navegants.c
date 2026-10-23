@@ -5,6 +5,7 @@
  * @Data ultima modificacio: 19/10/2026
  ************************************************/
 #include "gestio_navegants.h"
+#include "trames.h"
 
 /***********************************************
  * @Finalitat: Inicialitza el registre i la pipe de finalitzacio del servidor.
@@ -136,4 +137,41 @@ int esperarPeticioNavegant(int fd_navegant, int fd_finalitzacio) {
         return -1;
     }
     return FD_ISSET(fd_finalitzacio, &descriptors) ? 0 : 1;
+}
+
+/***********************************************
+ * @Finalitat: Acumula una trama vigilant la finalitzacio entre lectures parcials.
+ * @Parametres: in: fd_navegant = socket; fd_finalitzacio = lectura de la pipe.
+ *              out: trama = buffer de MIDA_TRAMA bytes.
+ * @Retorn: Retorna 0 amb trama completa, 1 amb finalitzacio o EOF inicial
+ *          i -1 amb error o EOF a mitja trama.
+ ************************************************/
+int rebreTramaNavegant(int fd_navegant, int fd_finalitzacio, unsigned char *trama) {
+    int total_llegit = 0, bytes_llegits = 0, resultat = 0;
+
+    while (total_llegit < MIDA_TRAMA) {
+        resultat = esperarPeticioNavegant(fd_navegant, fd_finalitzacio);
+        if (resultat == 0) {
+            return 1;
+        }
+        if (resultat < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return -1;
+        }
+        bytes_llegits = read(fd_navegant, trama + total_llegit,
+                            MIDA_TRAMA - total_llegit);
+        if (bytes_llegits < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return -1;
+        }
+        if (bytes_llegits == 0) {
+            return total_llegit == 0 ? 1 : -1;
+        }
+        total_llegit += bytes_llegits;
+    }
+    return 0;
 }

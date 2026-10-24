@@ -36,7 +36,9 @@ int buscarIllaConeguda(ConfiguracioOdisseu *configuracio, char *nom) {
  * @Retorn: Retorna la posicio de l'illa o -1 si les dades no son valides.
  ************************************************/
 int afegirIllaConeguda(ConfiguracioOdisseu *configuracio, char *nom, char *ip, int port) {
-    char *noms_valids[MAX_ILLES] = {"Aeaea", "Ogygia", "Scheria", "Thrinacia", "Aeolia", "Ismarus"};
+    char noms_valids[MAX_ILLES][MIDA_NOM_ILLA] = {
+        "Aeaea", "Ogygia", "Scheria", "Thrinacia", "Aeolia", "Ismarus"
+    };
     int i = 0, index = -1, nom_valid = -1;
 
     for (i = 0; i < MAX_ILLES; i++) {
@@ -881,47 +883,50 @@ int analitzarComanda(char *linia, Comanda *comanda) {
  ************************************************/
 int mostrarUsComanda(int tipus) {
     char *us = NULL;
+    int resultat = -1;
 
     switch (tipus) {
     case COMANDA_CONNECT:
-        us = "Usage: CONNECT ITHACA\n";
+        resultat = copiarText(&us, "Usage: CONNECT ITHACA\n");
         break;
     case COMANDA_LIST_VOYAGES:
-        us = "Usage: LIST VOYAGES\n";
+        resultat = copiarText(&us, "Usage: LIST VOYAGES\n");
         break;
     case COMANDA_ACCEPT:
-        us = "Usage: ACCEPT <voyage_id>\n";
+        resultat = copiarText(&us, "Usage: ACCEPT <voyage_id>\n");
         break;
     case COMANDA_SAIL:
-        us = "Usage: SAIL <island>\n";
+        resultat = copiarText(&us, "Usage: SAIL <island>\n");
         break;
     case COMANDA_MAP:
-        us = "Usage: MAP\n";
+        resultat = copiarText(&us, "Usage: MAP\n");
         break;
     case COMANDA_LIST_MARKET:
-        us = "Usage: LIST MARKET\n";
+        resultat = copiarText(&us, "Usage: LIST MARKET\n");
         break;
     case COMANDA_BUY:
-        us = "Usage: BUY <product> <amount>\n";
+        resultat = copiarText(&us, "Usage: BUY <product> <amount>\n");
         break;
     case COMANDA_SELL:
-        us = "Usage: SELL <product> <amount>\n";
+        resultat = copiarText(&us, "Usage: SELL <product> <amount>\n");
         break;
     case COMANDA_STATUS:
-        us = "Usage: STATUS\n";
+        resultat = copiarText(&us, "Usage: STATUS\n");
         break;
     case COMANDA_DELIVER:
-        us = "Usage: DELIVER\n";
+        resultat = copiarText(&us, "Usage: DELIVER\n");
         break;
     case COMANDA_CLAIM:
-        us = "Usage: CLAIM\n";
+        resultat = copiarText(&us, "Usage: CLAIM\n");
         break;
     }
 
-    if (us == NULL) {
+    if (resultat != 0) {
         return -1;
     }
-    return escriureMissatge(us);
+    resultat = escriureMissatge(us);
+    free(us);
+    return resultat;
 }
 
 /***********************************************

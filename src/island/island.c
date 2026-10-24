@@ -71,23 +71,30 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom,
     if ((int)strlen(dades) != peticio[POSICIO_LONGITUD] || esNumero(dades) == 0) {
         return enviarNack(fd_navegant, "INVALID_DATA");
     }
+    error = malloc((MIDA_DADES + 1) * sizeof(*error));
+    if (error == NULL) {
+        return -1;
+    }
+    error[0] = '\0';
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO || peticio[POSICIO_LONGITUD] != 1 ||
         peticio[POSICIO_DADES] != '1') {
-        error = "Quantitat de mapa invalida";
+        strcpy(error, "Quantitat de mapa invalida");
     }
-    for (i = 0; i < total && error == NULL; i++) {
+    for (i = 0; i < total && error[0] == '\0'; i++) {
         longitud = snprintf(dades, sizeof(dades), "OK&50&%d&%d&%s&%s&%d", i + 1, total,
                              configuracio->rutes[i].nom_illa, configuracio->rutes[i].ip,
                              configuracio->rutes[i].port);
         if (longitud > MIDA_DADES) {
-            error = "Ruta massa llarga";
+            strcpy(error, "Ruta massa llarga");
         }
     }
-    if (error != NULL) {
+    if (error[0] != '\0') {
         crearTrama(trama, TIPUS_BUY_MAP, FLAG_RESPOSTA_ERROR,
                    (unsigned char *)error, strlen(error));
+        free(error);
         return enviarTrama(fd_navegant, trama);
     }
+    free(error);
     if (total == 0) {
         crearTrama(trama, TIPUS_BUY_MAP, FLAG_RESPOSTA_OK, (unsigned char *)"OK&50&0", 7);
         resultat = enviarTrama(fd_navegant, trama);
@@ -117,7 +124,7 @@ int gestionarListMarket(int fd_navegant, unsigned char *peticio,
                         ConfiguracioIlla *configuracio, pthread_mutex_t *mutex_stock) {
     Producte *copia_productes = NULL;
     unsigned char trama[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], *error = NULL;
+    char dades[MIDA_DADES + 1];
     int i = 0, total = configuracio->nombre_productes + 1, resultat = 0, longitud = 0;
 
     if (peticio[POSICIO_LONGITUD] != 0) {
@@ -126,17 +133,14 @@ int gestionarListMarket(int fd_navegant, unsigned char *peticio,
     if (total > 1) {
         copia_productes = malloc((total - 1) * sizeof(*copia_productes));
         if (copia_productes == NULL) {
-            error = "Sense memoria";
+            crearTrama(trama, TIPUS_LIST_MARKET, FLAG_RESPOSTA_ERROR,
+                       (unsigned char *)"Sense memoria", 13);
+            return enviarTrama(fd_navegant, trama);
         } else {
             pthread_mutex_lock(mutex_stock);
             memcpy(copia_productes, configuracio->productes, (total - 1) * sizeof(*copia_productes));
             pthread_mutex_unlock(mutex_stock);
         }
-    }
-    if (error != NULL) {
-        crearTrama(trama, TIPUS_LIST_MARKET, FLAG_RESPOSTA_ERROR,
-                   (unsigned char *)error, strlen(error));
-        return enviarTrama(fd_navegant, trama);
     }
     for (i = 0; i < total && resultat == 0; i++) {
         if (i == total - 1) {
@@ -167,14 +171,19 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom,
                          ConfiguracioIlla *configuracio, pthread_mutex_t *mutex_stock,
                          char *ruta_stock) {
     unsigned char trama[MIDA_TRAMA], tipus = peticio[POSICIO_TIPUS];
-    char dades[MIDA_DADES + 1], *quantitat_text = NULL, *error = "Peticio invalida";
-    char missatge[MIDA_NOM_ODYSSEUS + MIDA_NOM_PRODUCTE + 100], *accio = "bought";
+    char dades[MIDA_DADES + 1], *quantitat_text = NULL, *error = NULL;
+    char missatge[MIDA_NOM_ODYSSEUS + MIDA_NOM_PRODUCTE + 100], accio[] = "bought";
     int longitud = peticio[POSICIO_LONGITUD], quantitat = 0, i = 0, index = -1;
     int nova_quantitat = 0, import = 0, valida = 1, format_valid = 0;
 
     if (longitud == 0 || longitud > MIDA_DADES) {
         return enviarNack(fd_navegant, "INVALID_LENGTH");
     }
+    error = malloc((MIDA_DADES + 1) * sizeof(*error));
+    if (error == NULL) {
+        return -1;
+    }
+    strcpy(error, "Peticio invalida");
     if (peticio[POSICIO_FLAGS] == FLAG_PETICIO && longitud > 0 && longitud <= MIDA_DADES) {
         memcpy(dades, peticio + POSICIO_DADES, longitud);
         dades[longitud] = '\0';
@@ -195,7 +204,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom,
             }
             if (valida == 1 && quantitat > 0 && dades[0] != '\0' &&
                 strlen(dades) < MIDA_NOM_PRODUCTE && strcasecmp(dades, "MAP") != 0) {
-                error = "Producte desconegut";
+                strcpy(error, "Producte desconegut");
                 pthread_mutex_lock(mutex_stock);
                 for (i = 0; i < configuracio->nombre_productes; i++) {
                     if (strcmp(configuracio->productes[i].nom, dades) == 0) {
@@ -203,7 +212,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom,
                     }
                 }
                 if (index >= 0) {
-                    error = "Quantitat fora de rang";
+                    strcpy(error, "Quantitat fora de rang");
                     if (configuracio->productes[index].preu >= 0 &&
                         (configuracio->productes[index].preu == 0 ||
                          quantitat <= INT_MAX / configuracio->productes[index].preu)) {
@@ -211,18 +220,18 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom,
                         nova_quantitat = configuracio->productes[index].quantitat;
                         if (tipus == TIPUS_BUY && nova_quantitat >= quantitat) {
                             nova_quantitat -= quantitat;
-                            error = NULL;
+                            error[0] = '\0';
                         } else if (tipus == TIPUS_BUY) {
-                            error = "Stock insuficient";
+                            strcpy(error, "Stock insuficient");
                         } else if (nova_quantitat <= INT_MAX - quantitat) {
                             nova_quantitat += quantitat;
-                            error = NULL;
+                            error[0] = '\0';
                         }
-                        if (error == NULL) {
+                        if (error[0] == '\0') {
                             if (actualitzarQuantitatStock(ruta_stock, index, nova_quantitat) == 0) {
                                 configuracio->productes[index].quantitat = nova_quantitat;
                             } else {
-                                error = "Error escrivint stock";
+                                strcpy(error, "Error escrivint stock");
                             }
                         }
                     }
@@ -232,13 +241,14 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom,
         }
     }
     if (format_valid == 0) {
+        free(error);
         return enviarNack(fd_navegant, "INVALID_DATA");
     }
-    if (error != NULL) {
+    if (error[0] != '\0') {
         crearTrama(trama, tipus, FLAG_RESPOSTA_ERROR, (unsigned char *)error, strlen(error));
     } else {
         if (tipus == TIPUS_SELL) {
-            accio = "sold";
+            strcpy(accio, "sold");
         }
         longitud = snprintf(missatge, sizeof(missatge), ">>> %s %s %d kg of %s.\n",
                              nom, accio, quantitat, dades);
@@ -247,6 +257,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom,
                              configuracio->productes[index].nom, quantitat, import);
         crearTrama(trama, tipus, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
     }
+    free(error);
     return enviarTrama(fd_navegant, trama);
 }
 
@@ -461,22 +472,29 @@ void *atendreOdysseusIsland(void *arg) {
         finalitzarNavegant(control);
         return NULL;
     }
+    resposta = malloc(sizeof("Sense memoria"));
+    if (resposta == NULL) {
+        close(fd_navegant);
+        finalitzarNavegant(control);
+        return NULL;
+    }
     longitud = snprintf(missatge, sizeof(missatge), ">>> %s approaching %s.\n",
                          vaixell.nom, configuracio->nom);
     write(1, missatge, longitud);
     resultat_port = registrarArribada(port, configuracio->capacitat_port, &vaixell, mutex_port);
     if (resultat_port == 1) {
-        resposta = "DOCKED";
+        strcpy(resposta, "DOCKED");
         longitud = snprintf(missatge, sizeof(missatge), ">>> %s entered the port.\n", vaixell.nom);
     } else if (resultat_port == 2) {
-        resposta = "WAIT";
+        strcpy(resposta, "WAIT");
         longitud = snprintf(missatge, sizeof(missatge),
                              ">>> Port full. %s waiting offshore in the FIFO queue.\n", vaixell.nom);
     } else {
-        resposta = "Sense memoria";
+        strcpy(resposta, "Sense memoria");
         flags = FLAG_RESPOSTA_ERROR;
     }
     crearTrama(trama, TIPUS_ARRIBADA_ILLA, flags, (unsigned char *)resposta, strlen(resposta));
+    free(resposta);
     resultat = enviarTrama(fd_navegant, trama);
     if (resultat == 0 && resultat_port > 0) {
         write(1, missatge, longitud);

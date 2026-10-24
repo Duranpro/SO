@@ -1,3 +1,9 @@
 /.vscode
 .vscode/sftp.json
 .vscode/sftp.json
+
+# Fitxers generats per make (lib/sphragis.o es conserva al repositori).
+/build/
+/odysseus
+/ithaca
+/island

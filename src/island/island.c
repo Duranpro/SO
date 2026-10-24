@@ -59,7 +59,7 @@ typedef struct {
  ************************************************/
 int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, ConfiguracioIlla *configuracio) {
     unsigned char trama[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], missatge[MIDA_NOM_ODYSSEUS + 60], *error = NULL;
+    char dades[MIDA_DADES + 1], *missatge = NULL, *error = NULL, *ruta = NULL;
     int i = 0, longitud = 0, resultat = 0, total = configuracio->nombre_rutes;
 
     if (peticio[POSICIO_LONGITUD] == 0 || peticio[POSICIO_LONGITUD] > MIDA_DADES) {
@@ -79,7 +79,13 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
         strcpy(error, "Quantitat de mapa invalida");
     }
     for (i = 0; i < total && error[0] == '\0'; i++) {
-        longitud = snprintf(dades, sizeof(dades), "OK&50&%d&%d&%s&%s&%d", i + 1, total,configuracio->rutes[i].nom_illa, configuracio->rutes[i].ip, configuracio->rutes[i].port);
+        longitud = asprintf(&ruta, "OK&50&%d&%d&%s&%s&%d", i + 1, total,configuracio->rutes[i].nom_illa, configuracio->rutes[i].ip, configuracio->rutes[i].port);
+        if (longitud < 0) {
+            free(error);
+            return -1;
+        }
+        free(ruta);
+        ruta = NULL;
         if (longitud > MIDA_DADES) {
             strcpy(error, "Ruta massa llarga");
         }
@@ -95,13 +101,25 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
         resultat = enviarTrama(fd_navegant, trama);
     }
     for (i = 0; i < total && resultat == 0; i++) {
-        longitud = snprintf(dades, sizeof(dades), "OK&50&%d&%d&%s&%s&%d", i + 1, total, configuracio->rutes[i].nom_illa, configuracio->rutes[i].ip, configuracio->rutes[i].port);
-        crearTrama(trama, TIPUS_BUY_MAP, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
+        longitud = asprintf(&ruta, "OK&50&%d&%d&%s&%s&%d", i + 1, total, configuracio->rutes[i].nom_illa, configuracio->rutes[i].ip, configuracio->rutes[i].port);
+        if (longitud < 0) {
+            return -1;
+        }
+        resultat = crearTrama(trama, TIPUS_BUY_MAP, FLAG_RESPOSTA_OK, (unsigned char *)ruta, longitud);
+        free(ruta);
+        ruta = NULL;
+        if (resultat != 0) {
+            break;
+        }
         resultat = enviarTrama(fd_navegant, trama);
     }
     if (resultat == 0) {
-        longitud = snprintf(missatge, sizeof(missatge), ">>> %s bought the local map.\n", nom);
-        write(1, missatge, longitud);
+        longitud = asprintf(&missatge, ">>> %s bought the local map.\n", nom);
+        if (longitud >= 0) {
+            write(1, missatge, longitud);
+            free(missatge);
+        }
+        missatge = NULL;
     }
     return resultat;
 }
@@ -116,7 +134,7 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
 int gestionarListMarket(int fd_navegant, unsigned char *peticio,ConfiguracioIlla *configuracio, pthread_mutex_t *mutex_stock) {
     Producte *copia_productes = NULL;
     unsigned char trama[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1];
+    char *dades = NULL;
     int i = 0, total = configuracio->nombre_productes + 1, resultat = 0, longitud = 0;
 
     if (peticio[POSICIO_LONGITUD] != 0) {
@@ -135,11 +153,17 @@ int gestionarListMarket(int fd_navegant, unsigned char *peticio,ConfiguracioIlla
     }
     for (i = 0; i < total && resultat == 0; i++) {
         if (i == total - 1) {
-            longitud = snprintf(dades, sizeof(dades), "%d&%d&MAP&1&50", i + 1, total);
+            longitud = asprintf(&dades, "%d&%d&MAP&1&50", i + 1, total);
         } else {
-            longitud = snprintf(dades, sizeof(dades), "%d&%d&%s&%d&%d", i + 1, total, copia_productes[i].nom, copia_productes[i].quantitat,copia_productes[i].preu);
+            longitud = asprintf(&dades, "%d&%d&%s&%d&%d", i + 1, total, copia_productes[i].nom, copia_productes[i].quantitat,copia_productes[i].preu);
+        }
+        if (longitud < 0) {
+            resultat = -1;
+            break;
         }
         resultat = crearTrama(trama, TIPUS_LIST_MARKET, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
+        free(dades);
+        dades = NULL;
         if (resultat == 0) {
             resultat = enviarTrama(fd_navegant, trama);
         }
@@ -157,8 +181,8 @@ int gestionarListMarket(int fd_navegant, unsigned char *peticio,ConfiguracioIlla
  ************************************************/
 int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, ConfiguracioIlla *configuracio, pthread_mutex_t *mutex_stock, char *ruta_stock) {
     unsigned char trama[MIDA_TRAMA], tipus = peticio[POSICIO_TIPUS];
-    char dades[MIDA_DADES + 1], *quantitat_text = NULL, *error = NULL;
-    char missatge[MIDA_NOM_ODYSSEUS + MIDA_NOM_PRODUCTE + 100], accio[] = "bought";
+    char dades[MIDA_DADES + 1], *quantitat_text = NULL, *error = NULL, *resposta = NULL;
+    char *missatge = NULL, accio[] = "bought";
     int longitud = peticio[POSICIO_LONGITUD], quantitat = 0, i = 0, index = -1;
     int nova_quantitat = 0, import = 0, valida = 1, format_valid = 0;
 
@@ -236,10 +260,23 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
         if (tipus == TIPUS_SELL) {
             strcpy(accio, "sold");
         }
-        longitud = snprintf(missatge, sizeof(missatge), ">>> %s %s %d kg of %s.\n", nom, accio, quantitat, dades);
-        write(1, missatge, longitud);
-        longitud = snprintf(dades, sizeof(dades), "OK&%s&%d&%d", configuracio->productes[index].nom, quantitat, import);
-        crearTrama(trama, tipus, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
+        longitud = asprintf(&missatge, ">>> %s %s %d kg of %s.\n", nom, accio, quantitat, dades);
+        if (longitud >= 0) {
+            write(1, missatge, longitud);
+            free(missatge);
+        }
+        missatge = NULL;
+        longitud = asprintf(&resposta, "OK&%s&%d&%d", configuracio->productes[index].nom, quantitat, import);
+        if (longitud < 0) {
+            free(error);
+            return -1;
+        }
+        valida = crearTrama(trama, tipus, FLAG_RESPOSTA_OK, (unsigned char *)resposta, longitud);
+        free(resposta);
+        if (valida != 0) {
+            free(error);
+            return -1;
+        }
     }
     free(error);
     return enviarTrama(fd_navegant, trama);
@@ -308,15 +345,19 @@ int registrarArribada(EstatPort *port, int capacitat, VaixellPort *vaixell, pthr
  ************************************************/
 int notificarEntradaPort(VaixellPort *vaixell) {
     unsigned char trama[MIDA_TRAMA];
-    char missatge[MIDA_NOM_ODYSSEUS + 100];
+    char *missatge = NULL;
     int longitud = 0;
 
     crearTrama(trama, TIPUS_ARRIBADA_ILLA, FLAG_RESPOSTA_OK, (unsigned char *)"DOCKED", 6);
     if (enviarTrama(vaixell->fd_navegant, trama) != 0) {
         return -1;
     }
-    longitud = snprintf(missatge, sizeof(missatge), ">>> DOCKED sent to %s; he may enter the port.\n", vaixell->nom);
-    write(1, missatge, longitud);
+    longitud = asprintf(&missatge, ">>> DOCKED sent to %s; he may enter the port.\n", vaixell->nom);
+    if (longitud >= 0) {
+        write(1, missatge, longitud);
+        free(missatge);
+    }
+    missatge = NULL;
     return 0;
 }
 
@@ -419,7 +460,7 @@ void *atendreOdysseusIsland(void *arg) {
     char *ruta_stock = dades_navegant->ruta_stock;
     VaixellPort vaixell = {0};
     unsigned char trama[MIDA_TRAMA], flags = FLAG_RESPOSTA_OK;
-    char missatge[MIDA_NOM_ODYSSEUS + 100], *resposta = NULL;
+    char *missatge = NULL, *resposta = NULL;
     int fd_navegant = dades_navegant->fd_navegant, longitud = 0, resultat_port = -1, resultat = 0;
     int fd_finalitzacio = dades_navegant->fd_finalitzacio;
     int i = 0, atracat = 0, tipus = 0;
@@ -464,15 +505,25 @@ void *atendreOdysseusIsland(void *arg) {
         finalitzarNavegant(control);
         return NULL;
     }
-    longitud = snprintf(missatge, sizeof(missatge), ">>> %s approaching %s.\n",vaixell.nom, configuracio->nom);
-    write(1, missatge, longitud);
+    longitud = asprintf(&missatge, ">>> %s approaching %s.\n",vaixell.nom, configuracio->nom);
+    if (longitud >= 0) {
+        write(1, missatge, longitud);
+        free(missatge);
+    }
+    missatge = NULL;
     resultat_port = registrarArribada(port, configuracio->capacitat_port, &vaixell, mutex_port);
     if (resultat_port == 1) {
         strcpy(resposta, "DOCKED");
-        longitud = snprintf(missatge, sizeof(missatge), ">>> %s entered the port.\n", vaixell.nom);
+        longitud = asprintf(&missatge, ">>> %s entered the port.\n", vaixell.nom);
+        if (longitud < 0) {
+            missatge = NULL;
+        }
     } else if (resultat_port == 2) {
         strcpy(resposta, "WAIT");
-        longitud = snprintf(missatge, sizeof(missatge),">>> Port full. %s waiting offshore in the FIFO queue.\n", vaixell.nom);
+        longitud = asprintf(&missatge, ">>> Port full. %s waiting offshore in the FIFO queue.\n", vaixell.nom);
+        if (longitud < 0) {
+            missatge = NULL;
+        }
     } else {
         strcpy(resposta, "Sense memoria");
         flags = FLAG_RESPOSTA_ERROR;
@@ -481,7 +532,11 @@ void *atendreOdysseusIsland(void *arg) {
     free(resposta);
     resultat = enviarTrama(fd_navegant, trama);
     if (resultat == 0 && resultat_port > 0) {
-        write(1, missatge, longitud);
+        if (longitud >= 0) {
+            write(1, missatge, longitud);
+        }
+        free(missatge);
+        missatge = NULL;
         if (resultat_port == 2 && confirmarEspera(port, fd_navegant, mutex_port) == 1) {
             resultat = notificarEntradaPort(&vaixell);
         }
@@ -521,8 +576,12 @@ void *atendreOdysseusIsland(void *arg) {
                         continue;
                     } else {
                         alliberarPlacaPort(port, fd_navegant, mutex_port);
-                        longitud = snprintf(missatge, sizeof(missatge), ">>> %s has left.\n", vaixell.nom);
-                        write(1, missatge, longitud);
+                        longitud = asprintf(&missatge, ">>> %s has left.\n", vaixell.nom);
+                        if (longitud >= 0) {
+                            write(1, missatge, longitud);
+                            free(missatge);
+                        }
+                        missatge = NULL;
                         crearTrama(trama, tipus, FLAG_RESPOSTA_OK, (unsigned char *)"OK", 2);
                     }
                     resultat = enviarTrama(fd_navegant, trama);
@@ -534,6 +593,7 @@ void *atendreOdysseusIsland(void *arg) {
             }
         }
     }
+    free(missatge);
     alliberarPlacaPort(port, fd_navegant, mutex_port);
     close(fd_navegant);
     finalitzarNavegant(control);

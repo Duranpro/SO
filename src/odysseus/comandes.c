@@ -165,7 +165,7 @@ int mostrarStatus(ConfiguracioOdisseu *configuracio) {
  ************************************************/
 int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantitat) {
     unsigned char trama[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], missatge[MIDA_DADES + 100];
+    char dades[MIDA_DADES + 1], *missatge = NULL;
     char *camps[7], *camp = NULL;
     int origen = buscarIllaConeguda(configuracio, configuracio->ubicacio_actual);
     int index = 1, total = 1, desti = -1, nombre_camps = 0, longitud = 0, resultat = 0;
@@ -208,8 +208,12 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
             break;
         }
         if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR && index == 1) {
-            snprintf(missatge, sizeof(missatge), "Error: %s.\n", dades);
-            return escriureMissatge(missatge);
+            if (asprintf(&missatge, "Error: %s.\n", dades) < 0) {
+                return -1;
+            }
+            resultat = escriureMissatge(missatge);
+            free(missatge);
+            return resultat;
         }
         if (trama[POSICIO_FLAGS] != FLAG_RESPOSTA_OK || (int)strlen(dades) != longitud) {
             resultat = -1;
@@ -260,9 +264,13 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
         afegirConnexio(&configuracio->illes_conegudes[desti], &configuracio->illes_conegudes[origen]);
     }
     if (resultat == 0) {
-        snprintf(missatge, sizeof(missatge), "Bought the map of %s for 50 gold.\nNew routes have been charted.\n",
-                  configuracio->ubicacio_actual);
-        return escriureMissatge(missatge);
+        if (asprintf(&missatge, "Bought the map of %s for 50 gold.\nNew routes have been charted.\n",
+                  configuracio->ubicacio_actual) < 0) {
+            return -1;
+        }
+        resultat = escriureMissatge(missatge);
+        free(missatge);
+        return resultat;
     }
     close(*fd_illa);
     *fd_illa = -1;
@@ -356,7 +364,7 @@ int sortirIlla(ConfiguracioOdisseu *configuracio, int *fd_illa) {
 int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa) {
     unsigned char trama[MIDA_TRAMA];
     Producte *mercat = NULL;
-    char dades[MIDA_DADES + 1], missatge[MIDA_DADES + 100], nom[MIDA_DADES + 1];
+    char dades[MIDA_DADES + 1], *missatge = NULL, nom[MIDA_DADES + 1];
     char *camps[5], *camp = NULL;
     int index = 1, total = 1, longitud = 0, i = 0, nombre_camps = 0;
     int quantitat = 0, preu = 0, resultat = 0;
@@ -400,8 +408,12 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
         }
         if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR) {
             free(mercat);
-            snprintf(missatge, sizeof(missatge), "Error: %s.\n", dades);
-            return escriureMissatge(missatge);
+            if (asprintf(&missatge, "Error: %s.\n", dades) < 0) {
+                return -1;
+            }
+            resultat = escriureMissatge(missatge);
+            free(missatge);
+            return resultat;
         }
         if (dades[0] == '&' || dades[longitud - 1] == '&' || strstr(dades, "&&") != NULL) {
             enviarNack(*fd_illa, "INVALID_DATA");
@@ -435,8 +447,13 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
                 nom[i] = toupper((unsigned char)nom_illa[i]);
             }
             nom[i] = '\0';
-            snprintf(missatge, sizeof(missatge), "--- %s MARKET ---\n", nom);
+            if (asprintf(&missatge, "--- %s MARKET ---\n", nom) < 0) {
+                free(mercat);
+                return -1;
+            }
             escriureMissatge(missatge);
+            free(missatge);
+            missatge = NULL;
         }
         quantitat = atoi(camps[3]);
         preu = atoi(camps[4]);
@@ -448,14 +465,22 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
             break;
         }
         if (index == total) {
-            snprintf(missatge, sizeof(missatge), "Map 50 gold\n");
+            if (asprintf(&missatge, "Map 50 gold\n") < 0) {
+                free(mercat);
+                return -1;
+            }
         } else {
             strcpy(mercat[index - 1].nom, camps[2]);
             mercat[index - 1].quantitat = quantitat;
             mercat[index - 1].preu = preu;
-            snprintf(missatge, sizeof(missatge), "%s %d kg %d gold/kg\n", camps[2], quantitat, preu);
+            if (asprintf(&missatge, "%s %d kg %d gold/kg\n", camps[2], quantitat, preu) < 0) {
+                free(mercat);
+                return -1;
+            }
         }
         escriureMissatge(missatge);
+        free(missatge);
+        missatge = NULL;
     }
     if (resultat == 0) {
         configuracio->mercat_actual = mercat;
@@ -477,15 +502,20 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
  ************************************************/
 int intercanviarAliments(int *fd_illa, int tipus, char *producte, int quantitat, int *import) {
     unsigned char trama[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], missatge[MIDA_DADES + 20];
+    char *peticio = NULL;
+    char dades[MIDA_DADES + 1], *missatge = NULL;
     char *estat = NULL, *nom = NULL, *kg = NULL, *or = NULL;
     int longitud = 0, resultat = -1;
 
-    longitud = snprintf(dades, sizeof(dades), "%s&%d", producte, quantitat);
-    if (crearTrama(trama, tipus, FLAG_PETICIO, (unsigned char *)dades, longitud) == 0 &&
+    longitud = asprintf(&peticio, "%s&%d", producte, quantitat);
+    if (longitud < 0) {
+        return -1;
+    }
+    if (crearTrama(trama, tipus, FLAG_PETICIO, (unsigned char *)peticio, longitud) == 0 &&
         enviarTrama(*fd_illa, trama) == 0) {
         resultat = rebreTrama(*fd_illa, trama);
     }
+    free(peticio);
     if (resultat == 0 && trama[POSICIO_TIPUS] != tipus) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
             enviarNack(*fd_illa, "INVALID_TYPE");
@@ -512,8 +542,12 @@ int intercanviarAliments(int *fd_illa, int tipus, char *producte, int quantitat,
             resultat = -1;
         }
         if (resultat == 0 && trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR) {
-            snprintf(missatge, sizeof(missatge), "Error: %s.\n", dades);
+            if (asprintf(&missatge, "Error: %s.\n", dades) < 0) {
+                return -1;
+            }
             escriureMissatge(missatge);
+            free(missatge);
+            missatge = NULL;
             return 0;
         }
         estat = strtok(dades, "&");
@@ -546,7 +580,7 @@ int intercanviarAliments(int *fd_illa, int tipus, char *producte, int quantitat,
  ************************************************/
 int executarBuy(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte, int quantitat) {
     Aliment *aliments = NULL;
-    char *nom_nou = NULL, missatge[MIDA_DADES + 100];
+    char *nom_nou = NULL, *missatge = NULL;
     int i = 0, index_mercat = -1, index_aliment = -1, cost = 0, import = 0, resultat = 0;
 
     if (strcasecmp(producte, "MAP") == 0) {
@@ -611,8 +645,12 @@ int executarBuy(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte,
         }
         configuracio->diners -= import;
         configuracio->aliments[index_aliment].quantitat += quantitat;
-        snprintf(missatge, sizeof(missatge), "Bought %d kg of %s for %d gold.\n", quantitat, producte, import);
+        if (asprintf(&missatge, "Bought %d kg of %s for %d gold.\n", quantitat, producte, import) < 0) {
+            return -1;
+        }
         escriureMissatge(missatge);
+        free(missatge);
+        missatge = NULL;
     } else if (resultat == 1) {
         close(*fd_illa);
         *fd_illa = -1;
@@ -634,7 +672,7 @@ int executarBuy(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte,
  * @Retorn: Retorna 0 si mostra el resultat i -1 si falla la sortida.
  ************************************************/
 int executarSell(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte, int quantitat) {
-    char missatge[MIDA_DADES + 100];
+    char *missatge = NULL;
     int i = 0, index = -1, import = 0, resultat = 0;
 
     if (*fd_illa < 0 || quantitat <= 0 || strcasecmp(producte, "MAP") == 0) {
@@ -652,8 +690,12 @@ int executarSell(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte
     if (resultat == 1 && import <= INT_MAX - configuracio->diners) {
         configuracio->aliments[index].quantitat -= quantitat;
         configuracio->diners += import;
-        snprintf(missatge, sizeof(missatge), "Sold %d kg of %s for %d gold.\n", quantitat, producte, import);
+        if (asprintf(&missatge, "Sold %d kg of %s for %d gold.\n", quantitat, producte, import) < 0) {
+            return -1;
+        }
         escriureMissatge(missatge);
+        free(missatge);
+        missatge = NULL;
     } else if (resultat == 1) {
         close(*fd_illa);
         *fd_illa = -1;
@@ -1026,7 +1068,7 @@ int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
  ************************************************/
 int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
     unsigned char trama[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], missatge[MIDA_DADES + 100];
+    char dades[MIDA_DADES + 1], *missatge = NULL;
     char *camps[6], *camp = NULL;
     int *viatges = NULL;
     int index = 1, total = 1, i = 0, longitud = 0, resultat = -1;
@@ -1066,9 +1108,14 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
             memcpy(dades, trama + POSICIO_DADES, longitud);
             dades[longitud] = '\0';
             if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR) {
-                snprintf(missatge, sizeof(missatge), "Error: %s\n", dades);
+                if (asprintf(&missatge, "Error: %s\n", dades) < 0) {
+                    free(viatges);
+                    return -1;
+                }
                 free(viatges);
-                return escriureMissatge(missatge);
+                resultat = escriureMissatge(missatge);
+                free(missatge);
+                return resultat;
             }
             if (trama[POSICIO_FLAGS] != FLAG_RESPOSTA_OK || (int)strlen(dades) != longitud ||
                 dades[0] == '&' || dades[longitud - 1] == '&' || strstr(dades, "&&") != NULL) {
@@ -1109,9 +1156,15 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
                 break;
             }
             viatges[index - 1] = atoi(camps[2]);
-            snprintf(missatge, sizeof(missatge), "%s. %s -> %s [%s]\n",
-                      camps[2], camps[3], camps[4], camps[5]);
-            if (escriureMissatge(missatge) != 0) {
+            if (asprintf(&missatge, "%s. %s -> %s [%s]\n",
+                      camps[2], camps[3], camps[4], camps[5]) < 0) {
+                free(viatges);
+                return -1;
+            }
+            resultat = escriureMissatge(missatge);
+            free(missatge);
+            missatge = NULL;
+            if (resultat != 0) {
                 free(viatges);
                 return -1;
             }
@@ -1141,7 +1194,8 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
  ************************************************/
 int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identificador) {
     unsigned char trama[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], missatge[MIDA_DADES + 100];
+    char *peticio = NULL;
+    char dades[MIDA_DADES + 1], *missatge = NULL;
     char *camps[5], *camp = NULL;
     Viatge viatge = {0};
     int longitud = 0, resultat = -1, i = 0;
@@ -1160,11 +1214,15 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
     if (i == configuracio->nombre_viatges_consultats) {
         return escriureMissatge("Error: tria un ID de l'ultim LIST VOYAGES.\n");
     }
-    longitud = snprintf(dades, sizeof(dades), "%d", identificador);
-    if (crearTrama(trama, TIPUS_ACCEPT, FLAG_PETICIO, (unsigned char *)dades, longitud) == 0 &&
+    longitud = asprintf(&peticio, "%d", identificador);
+    if (longitud < 0) {
+        return -1;
+    }
+    if (crearTrama(trama, TIPUS_ACCEPT, FLAG_PETICIO, (unsigned char *)peticio, longitud) == 0 &&
         enviarTrama(*fd_ithaca, trama) == 0) {
         resultat = rebreTrama(*fd_ithaca, trama);
     }
+    free(peticio);
     if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_ACCEPT) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
             enviarNack(*fd_ithaca, "INVALID_TYPE");
@@ -1186,8 +1244,12 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
         memcpy(dades, trama + POSICIO_DADES, longitud);
         dades[longitud] = '\0';
         if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR) {
-            snprintf(missatge, sizeof(missatge), "Error: %s\n", dades);
-            return escriureMissatge(missatge);
+            if (asprintf(&missatge, "Error: %s\n", dades) < 0) {
+                return -1;
+            }
+            resultat = escriureMissatge(missatge);
+            free(missatge);
+            return resultat;
         }
         if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK && (int)strlen(dades) == longitud &&
             dades[0] != '&' && dades[longitud - 1] != '&' && strstr(dades, "&&") == NULL) {
@@ -1205,10 +1267,13 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
                     copiarText(&viatge.illa_desti, camps[3]) == 0) {
                     configuracio->viatge_actiu = viatge;
                     configuracio->te_viatge = 1;
-                    snprintf(missatge, sizeof(missatge),
-                              "Voyage %d accepted.\nDestination: %s.\n",
-                              identificador, viatge.illa_desti);
-                    return escriureMissatge(missatge);
+                    if (asprintf(&missatge, "Voyage %d accepted.\nDestination: %s.\n",
+                              identificador, viatge.illa_desti) < 0) {
+                        return -1;
+                    }
+                    resultat = escriureMissatge(missatge);
+                    free(missatge);
+                    return resultat;
                 }
                 free(viatge.nom_objecte);
                 free(viatge.illa_desti);
@@ -1327,7 +1392,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
     struct timeval temps, inici_racio, ara;
     Comanda comanda = {0};
     unsigned char trama[MIDA_TRAMA];
-    char missatge[MIDA_NOM_ODYSSEUS + 100];
+    char *missatge = NULL;
     char *linia = NULL;
     int fd_espera = *fd_illa, resultat = 0, provisions = 0, resultat_analisi = 0;
     long temps_transcorregut = 0, temps_restant = 0;
@@ -1349,19 +1414,26 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
             provisions = consumirProvisions(configuracio, 7);
             inici_racio.tv_sec += 5;
             temps_transcorregut -= 5000000L;
-            snprintf(missatge, sizeof(missatge),
-                      ">>> The crew consumes another ration.\nProvisions remaining: %d kg\n", provisions);
-            if (escriureMissatge(missatge) != 0) {
+            if (asprintf(&missatge, ">>> The crew consumes another ration.\nProvisions remaining: %d kg\n", provisions) < 0) {
+                return -1;
+            }
+            resultat = escriureMissatge(missatge);
+            free(missatge);
+            missatge = NULL;
+            if (resultat != 0) {
                 return -1;
             }
             if (provisions == 0) {
                 close(*fd_illa);
                 *fd_illa = -1;
                 *finalitzar_programa = 1;
-                snprintf(missatge, sizeof(missatge),
-                          "The crew has run out of provisions.\nOdysseus %s has been lost at sea.\n",
-                          configuracio->nom);
-                return escriureMissatge(missatge);
+                if (asprintf(&missatge, "The crew has run out of provisions.\nOdysseus %s has been lost at sea.\n",
+                          configuracio->nom) < 0) {
+                    return -1;
+                }
+                resultat = escriureMissatge(missatge);
+                free(missatge);
+                return resultat;
             }
         }
         FD_ZERO(&descriptors);
@@ -1415,9 +1487,13 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                 }
                 break;
             }
-            snprintf(missatge, sizeof(missatge), ">>> %s has granted access to the port.\n", nom_illa);
+            if (asprintf(&missatge, ">>> %s has granted access to the port.\n", nom_illa) < 0) {
+                return -1;
+            }
             strcpy(configuracio->ubicacio_actual, nom_illa);
-            return escriureMissatge(missatge);
+            resultat = escriureMissatge(missatge);
+            free(missatge);
+            return resultat;
         } else if (resultat > 0 && FD_ISSET(0, &descriptors)) {
             linia = llegirLinia(0);
             if (*finalitzar_programa != 0 || linia == NULL) {
@@ -1469,7 +1545,7 @@ int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *d
                 int *finalitzar_programa) {
     unsigned char trama[MIDA_TRAMA];
     char dades[MIDA_DADES + 1];
-    char missatge[MIDA_NOM_ILLA + 100];
+    char *missatge = NULL;
     int longitud = 0, resultat = -1;
 
     free(configuracio->mercat_actual);
@@ -1506,14 +1582,23 @@ int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *d
                 dades[longitud] = '\0';
                 if ((int)strlen(dades) == longitud &&
                     (strcmp(dades, "DOCKED") == 0 || strcmp(dades, "WAIT") == 0)) {
-                    snprintf(missatge, sizeof(missatge), "Connected to %s.\n", desti->nom);
-                    if (escriureMissatge(missatge) != 0) {
+                    if (asprintf(&missatge, "Connected to %s.\n", desti->nom) < 0) {
+                        return -1;
+                    }
+                    resultat = escriureMissatge(missatge);
+                    free(missatge);
+                    missatge = NULL;
+                    if (resultat != 0) {
                         return -1;
                     }
                     if (strcmp(dades, "DOCKED") == 0) {
                         strcpy(configuracio->ubicacio_actual, desti->nom);
-                        snprintf(missatge, sizeof(missatge), "%s has granted access to the port.\n", desti->nom);
+                        if (asprintf(&missatge, "%s has granted access to the port.\n", desti->nom) < 0) {
+                            return -1;
+                        }
                         resultat = escriureMissatge(missatge);
+                        free(missatge);
+                        missatge = NULL;
                     } else {
                         if (escriureMissatge("The harbor is full. We drop anchor and wait.\n") != 0) {
                             return -1;
@@ -1540,8 +1625,12 @@ int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *d
         close(*fd_illa);
         *fd_illa = -1;
     }
-    snprintf(missatge, sizeof(missatge), "Error: no s'ha pogut entrar al port de %s.\n", desti->nom);
-    return escriureMissatge(missatge);
+    if (asprintf(&missatge, "Error: no s'ha pogut entrar al port de %s.\n", desti->nom) < 0) {
+        return -1;
+    }
+    resultat = escriureMissatge(missatge);
+    free(missatge);
+    return resultat;
 }
 
 /***********************************************

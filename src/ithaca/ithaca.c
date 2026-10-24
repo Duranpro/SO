@@ -63,7 +63,7 @@ void gestionarSigint(int senyal __attribute__((unused))) {
  ************************************************/
 int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odysseus,int viatge_actual) {
     unsigned char trama[MIDA_TRAMA]; //REVISAR UNSIGNED
-    char dades[MIDA_DADES + 1], missatge[MIDA_DADES + 100];
+    char *dades = NULL, *missatge = NULL;
     int *indexs_disponibles = NULL;
     int i = 0, total = 0, longitud = 0, resultat = 0;
     Viatge *viatge = NULL;
@@ -100,8 +100,12 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
         }
     }
     pthread_mutex_unlock(mutex_viatges);
-    longitud = snprintf(missatge, sizeof(missatge), ">>> %s requested available voyages.\n", nom_odysseus); //REVISIO
-    write(1, missatge, longitud);
+    longitud = asprintf(&missatge, ">>> %s requested available voyages.\n", nom_odysseus);
+    if (longitud >= 0) {
+        write(1, missatge, longitud);
+        free(missatge);
+    }
+    missatge = NULL;
     if (total == 0) {
         free(indexs_disponibles);
         crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_OK, (unsigned char *)"0", 1);
@@ -109,8 +113,15 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
     }
     for (i = 0; i < total && resultat == 0; i++) {
         viatge = &configuracio->viatges[indexs_disponibles[i]];
-        longitud = snprintf(dades, sizeof(dades), "%d&%d&%d&%s&%s&%d", i + 1, total,viatge->identificador, viatge->nom_objecte, viatge->illa_desti, viatge->recompensa);
-        if (crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_OK,(unsigned char *)dades, longitud) != 0) {
+        longitud = asprintf(&dades, "%d&%d&%d&%s&%s&%d", i + 1, total,viatge->identificador, viatge->nom_objecte, viatge->illa_desti, viatge->recompensa);
+        if (longitud < 0) {
+            resultat = -1;
+            break;
+        }
+        resultat = crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
+        free(dades);
+        dades = NULL;
+        if (resultat != 0) {
             crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,(unsigned char *)"Viatge massa llarg", 18);
             resultat = enviarTrama(fd_navegant, trama);
             break;
@@ -135,8 +146,8 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
  ************************************************/
 int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odysseus, int *viatge_actual) {
     unsigned char trama[MIDA_TRAMA], flags = FLAG_RESPOSTA_ERROR;
-    char dades[MIDA_DADES + 1], resposta[MIDA_DADES + 1];
-    char missatge[MIDA_DADES + 100];
+    char dades[MIDA_DADES + 1], *resposta = NULL;
+    char *missatge = NULL;
     int longitud = peticio[POSICIO_LONGITUD], identificador = 0, i = 0;
     int acceptat = 0, longitud_resposta = 0;
     Viatge *viatge = NULL;
@@ -156,7 +167,6 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
         crearTrama(trama, TIPUS_ACCEPT, FLAG_RESPOSTA_ERROR,(unsigned char *)"Ja tens un viatge actiu", 23);
         return enviarTrama(fd_navegant, trama);
     }
-    strcpy(resposta, "ACCEPT invalid");
     if (peticio[POSICIO_FLAGS] == FLAG_PETICIO && longitud > 0 && longitud <= MIDA_DADES) {
         memcpy(dades, peticio + POSICIO_DADES, longitud);
         dades[longitud] = '\0';
@@ -174,7 +184,10 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
     if (identificador > 0) {
         viatge = &configuracio->viatges[identificador - 1];
         /* Aquests camps son immutables; la resposta queda en memoria local. */
-        longitud_resposta = snprintf(resposta, sizeof(resposta), "OK&%d&%s&%s&%d", viatge->identificador, viatge->nom_objecte, viatge->illa_desti, viatge->recompensa);
+        longitud_resposta = asprintf(&resposta, "OK&%d&%s&%s&%d", viatge->identificador, viatge->nom_objecte, viatge->illa_desti, viatge->recompensa);
+        if (longitud_resposta < 0) {
+            return -1;
+        }
         pthread_mutex_lock(mutex_viatges);
         if (viatge->disponible == 1 && longitud_resposta >= 0 && longitud_resposta <= MIDA_DADES) {
             viatge->disponible = 0;
@@ -185,13 +198,22 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
         if (acceptat == 1) {
             *viatge_actual = identificador;
             flags = FLAG_RESPOSTA_OK;
-            longitud = snprintf(missatge, sizeof(missatge),">>> Voyage %d assigned to %s.\n", identificador, nom_odysseus);
-            write(1, missatge, longitud);
-        } else {
-            strcpy(resposta, "Viatge no disponible");
+            longitud = asprintf(&missatge, ">>> Voyage %d assigned to %s.\n", identificador, nom_odysseus);
+            if (longitud >= 0) {
+                write(1, missatge, longitud);
+                free(missatge);
+            }
+            missatge = NULL;
         }
     }
-    crearTrama(trama, TIPUS_ACCEPT, flags, (unsigned char *)resposta, strlen(resposta));
+    if (acceptat == 1) {
+        crearTrama(trama, TIPUS_ACCEPT, flags, (unsigned char *)resposta, longitud_resposta);
+    } else if (identificador > 0) {
+        crearTrama(trama, TIPUS_ACCEPT, flags, (unsigned char *)"Viatge no disponible", strlen("Viatge no disponible"));
+    } else {
+        crearTrama(trama, TIPUS_ACCEPT, flags, (unsigned char *)"ACCEPT invalid", strlen("ACCEPT invalid"));
+    }
+    free(resposta);
     return enviarTrama(fd_navegant, trama);
 }
 
@@ -206,7 +228,7 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
  ************************************************/
 int gestionarDesconnexio(int fd_navegant, unsigned char *peticio, char *nom_odysseus) {
     unsigned char trama[MIDA_TRAMA];
-    char missatge[MIDA_NOM_ODYSSEUS + 100];
+    char *missatge = NULL;
     int longitud = 0;
 
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO) {
@@ -219,8 +241,12 @@ int gestionarDesconnexio(int fd_navegant, unsigned char *peticio, char *nom_odys
     if (enviarTrama(fd_navegant, trama) != 0) {
         return -1;
     }
-    longitud = snprintf(missatge, sizeof(missatge),">>> %s has left Ithaca. Fair winds!\n", nom_odysseus);
-    write(1, missatge, longitud);
+    longitud = asprintf(&missatge, ">>> %s has left Ithaca. Fair winds!\n", nom_odysseus);
+    if (longitud >= 0) {
+        write(1, missatge, longitud);
+        free(missatge);
+    }
+    missatge = NULL;
     return 1;
 }
 

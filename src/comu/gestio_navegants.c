@@ -100,21 +100,31 @@ void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
 }
 
 /***********************************************
- * @Finalitat: Espera connexions un segon per revisar el senyal i recollir fils.
- * @Parametres: in: fd_servidor = socket d'escolta.
- * @Retorn: Retorna 1 si hi ha connexio, 0 si expira o s'interromp i -1 si falla.
+ * @Finalitat: Espera connexions o l'avis de finalitzacio de la pipe.
+ * @Parametres: in: fd_servidor = socket; fd_finalitzacio = lectura de la pipe.
+ * @Retorn: 1 amb connexio, 0 amb espera, -1 amb error i 2 amb finalitzacio.
  ************************************************/
-int esperarNavegant(int fd_servidor) {
+int esperarNavegant(int fd_servidor, int fd_finalitzacio) {
     fd_set descriptors;
     struct timeval temps = {1, 0};
     int resultat = 0;
+    int maxim = fd_servidor;
 
-    if (fd_servidor < 0 || fd_servidor >= FD_SETSIZE) {
+    if (fd_servidor < 0 || fd_servidor >= FD_SETSIZE ||
+        fd_finalitzacio < 0 || fd_finalitzacio >= FD_SETSIZE) {
         return -1;
+    }
+    if (fd_finalitzacio > maxim) {
+        maxim = fd_finalitzacio;
     }
     FD_ZERO(&descriptors);
     FD_SET(fd_servidor, &descriptors);
-    resultat = select(fd_servidor + 1, &descriptors, NULL, NULL, &temps);
+    FD_SET(fd_finalitzacio, &descriptors);
+    resultat = select(maxim + 1, &descriptors, NULL, NULL, &temps);
+    if (resultat > 0 && FD_ISSET(fd_finalitzacio, &descriptors)) {
+        /* No consumim l'avis: tambe ha de despertar els fils navegants. */
+        return 2;
+    }
     return resultat < 0 && errno == EINTR ? 0 : resultat;
 }
 
@@ -169,7 +179,10 @@ int rebreTramaNavegant(int fd_navegant, int fd_finalitzacio, unsigned char *tram
             return -1;
         }
         if (bytes_llegits == 0) {
-            return total_llegit == 0 ? 1 : -1;
+            if (total_llegit == 0) {
+                return 1;
+            }
+            return -1;
         }
         total_llegit += bytes_llegits;
     }

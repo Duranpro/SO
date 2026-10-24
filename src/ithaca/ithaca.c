@@ -21,7 +21,7 @@
 #include "xarxa.h"
 #include "gestio_navegants.h"
 
-volatile sig_atomic_t finalitzar_programa = 0; //REVISAR
+int fd_avis_finalitzacio = -1;
 int fd_servidor = -1;
 
 typedef struct {
@@ -34,13 +34,19 @@ typedef struct {
 
 /***********************************************
  *
- * @Finalitat: Indica la finalitzacio que comprova el bucle del servidor.
+ * @Finalitat: Avisa de la finalitzacio escrivint un byte a la pipe.
  * @Parametres: in: senyal = senyal rebut pel proces.
  * @Retorn: ----.
  *
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
-    finalitzar_programa = 1;
+    int error_anterior = errno;
+    char avis = 'F';
+
+    signal(SIGINT, SIG_IGN);
+    while (write(fd_avis_finalitzacio, &avis, 1) < 0 && errno == EINTR) {
+    }
+    errno = error_anterior;
 }
 
 /***********************************************
@@ -349,10 +355,12 @@ int main(int argc, char *argv[]) {
         alliberarConfiguracioItaca(&configuracio);
         return 1;
     }
+    fd_avis_finalitzacio = navegants.finalitzacio[1];
     signal(SIGINT, gestionarSigint);
     signal(SIGPIPE, SIG_IGN); //REVISAR
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);
     if (fd_servidor < 0) {
+        signal(SIGINT, SIG_IGN);
         recollirNavegants(&navegants, 1);
         write(2, "Error: no s'ha pogut obrir el servidor d'Ithaca.\n", strlen("Error: no s'ha pogut obrir el servidor d'Ithaca.\n"));
         alliberarConfiguracioItaca(&configuracio);
@@ -365,10 +373,10 @@ int main(int argc, char *argv[]) {
         free(missatge);
     }
 
-    while (finalitzar_programa == 0) {
+    while (1) {
         recollirNavegants(&navegants, 0);
-        preparat = esperarNavegant(fd_servidor);
-        if (finalitzar_programa != 0) {
+        preparat = esperarNavegant(fd_servidor, navegants.finalitzacio[0]);
+        if (preparat == 2) {
             break;
         }
         if (preparat == 0) {
@@ -381,7 +389,7 @@ int main(int argc, char *argv[]) {
         }
         fd_navegant = accept(fd_servidor, NULL, NULL);
         if (fd_navegant < 0) {
-            if (finalitzar_programa == 0) {
+            if (errno != EINTR) {
                 write(2, "Error: accept d'Ithaca.\n", strlen("Error: accept d'Ithaca.\n"));
                 resultat = 1;
             }
@@ -415,6 +423,7 @@ int main(int argc, char *argv[]) {
         free(missatge);
     }
 
+    signal(SIGINT, SIG_IGN);
     recollirNavegants(&navegants, 1);
     alliberarConfiguracioItaca(&configuracio);
     pthread_mutex_destroy(&mutex_viatges);

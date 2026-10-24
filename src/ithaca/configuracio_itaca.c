@@ -99,10 +99,7 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     Viatge *viatges_ampliats = NULL, *viatge = NULL;
     char *camp = NULL;
 
-    viatges_ampliats = realloc(
-        configuracio->viatges,
-        (configuracio->nombre_viatges + 1) * sizeof(*viatges_ampliats)
-    );
+    viatges_ampliats = realloc(configuracio->viatges,(configuracio->nombre_viatges + 1) * sizeof(*viatges_ampliats));
     if (viatges_ampliats == NULL) {
         return -1;
     }

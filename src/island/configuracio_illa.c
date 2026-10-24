@@ -25,8 +25,7 @@ int actualitzarQuantitatStock(char *ruta, int index, int nova_quantitat) {
     if (fd < 0) {
         return -1;
     }
-    if (lseek(fd, desplacament, SEEK_SET) == desplacament &&
-        write(fd, &nova_quantitat, sizeof(int)) == sizeof(int)) {
+    if (lseek(fd, desplacament, SEEK_SET) == desplacament && write(fd, &nova_quantitat, sizeof(int)) == sizeof(int)) {
         resultat = 0;
     }
     if (close(fd) != 0) {
@@ -71,7 +70,6 @@ int afegirRuta(char *linia, ConfiguracioIlla *configuracio) {
         return -1;
     }
     ruta->port = atoi(camp);
-
     return 0;
 }
 
@@ -172,9 +170,7 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
     close(fd);
 
     if (resultat != 0) {
-        caracters_escrits = asprintf(
-            &missatge, "Error: no s'ha pogut carregar %s.\n", nom_fitxer
-        );
+        caracters_escrits = asprintf( &missatge, "Error: no s'ha pogut carregar %s.\n", nom_fitxer );
         if (caracters_escrits >= 0) {
             write(2, missatge, caracters_escrits);
             free(missatge);

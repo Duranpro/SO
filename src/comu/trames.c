@@ -25,8 +25,7 @@
  * @Retorn: Retorna 0 si es crea la trama i -1 si els parametres no son valids.
  *
  ************************************************/
-int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags,
-               unsigned char *dades, int longitud) {
+int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, unsigned char *dades, int longitud) {
     if (trama == NULL || longitud < 0 || longitud > MIDA_DADES) {
         return -1;
     }
@@ -101,8 +100,7 @@ int rebreTrama(int fd, unsigned char *trama) {
 int enviarNack(int fd, char *motiu) {
     unsigned char trama[MIDA_TRAMA];
 
-    if (crearTrama(trama, TIPUS_NACK, FLAG_RESPOSTA_ERROR,
-                   (unsigned char *)motiu, strlen(motiu)) != 0) {
+    if (crearTrama(trama, TIPUS_NACK, FLAG_RESPOSTA_ERROR, (unsigned char *)motiu, strlen(motiu)) != 0) {
         return -1;
     }
     return enviarTrama(fd, trama);

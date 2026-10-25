@@ -33,8 +33,7 @@
 #define FLAG_RESPOSTA_OK 0x80
 #define FLAG_RESPOSTA_ERROR 0xC0
 
-int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags,
-               unsigned char *dades, int longitud);
+int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, unsigned char *dades, int longitud);
 int enviarTrama(int fd, unsigned char *trama);
 int rebreTrama(int fd, unsigned char *trama);
 int enviarNack(int fd, char *motiu);

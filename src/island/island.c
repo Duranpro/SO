@@ -70,7 +70,7 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
     if ((int)strlen(dades) != peticio[POSICIO_LONGITUD] || esNumero(dades) == 0) {
         return enviarNack(fd_navegant, "INVALID_DATA");
     }
-    error = malloc((MIDA_DADES + 1) * sizeof(*error));
+    error = malloc((MIDA_DADES + 1) * sizeof(*error)); //REVISAR: potser no caldria reservar memoria per error
     if (error == NULL) {
         return -1;
     }
@@ -86,7 +86,7 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
         }
         free(ruta);
         ruta = NULL;
-        if (longitud > MIDA_DADES) {
+        if (longitud > MIDA_DADES) { //REVISAR: potser no caldria comprovar la longitud de la ruta, ja que es comprova a l'hora de crear la trama
             strcpy(error, "Ruta massa llarga");
         }
     }
@@ -163,7 +163,7 @@ int gestionarListMarket(int fd_navegant, unsigned char *peticio,ConfiguracioIlla
         }
         resultat = crearTrama(trama, TIPUS_LIST_MARKET, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
         free(dades);
-        dades = NULL;
+        dades = NULL; //REVISAR: potser no caldria posar a NULL dades
         if (resultat == 0) {
             resultat = enviarTrama(fd_navegant, trama);
         }
@@ -189,7 +189,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
     if (longitud == 0 || longitud > MIDA_DADES) {
         return enviarNack(fd_navegant, "INVALID_LENGTH");
     }
-    error = malloc((MIDA_DADES + 1) * sizeof(*error));
+    error = malloc((MIDA_DADES + 1) * sizeof(*error)); //REVISAR: potser no caldria reservar memoria per error
     if (error == NULL) {
         return -1;
     }
@@ -224,8 +224,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
                 if (index >= 0) {
                     strcpy(error, "Quantitat fora de rang");
                     if (configuracio->productes[index].preu >= 0 &&
-                        (configuracio->productes[index].preu == 0 ||
-                         quantitat <= INT_MAX / configuracio->productes[index].preu)) {
+                        (configuracio->productes[index].preu == 0 || quantitat <= INT_MAX / configuracio->productes[index].preu)) {
                         import = quantitat * configuracio->productes[index].preu;
                         nova_quantitat = configuracio->productes[index].quantitat;
                         if (tipus == TIPUS_BUY && nova_quantitat >= quantitat) {
@@ -357,7 +356,7 @@ int notificarEntradaPort(VaixellPort *vaixell) {
         write(1, missatge, longitud);
         free(missatge);
     }
-    missatge = NULL;
+    missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
     return 0;
 }
 
@@ -400,7 +399,7 @@ int confirmarEspera(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex_por
  *
  ************************************************/
 void alliberarPlacaPort(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex_port) {
-    VaixellPort promogut = {0};
+    VaixellPort promogut = {0}; // Vaixell que ha obtingut placa i que pot rebre DOCKED.
     int i = 0, j = 0;
 
     promogut.fd_navegant = -1;
@@ -466,7 +465,7 @@ void *atendreOdysseusIsland(void *arg) {
     int i = 0, atracat = 0, tipus = 0;
 
     free(arg);
-    if (rebreTramaNavegant(fd_navegant, fd_finalitzacio, trama) != 0) {
+    if (rebreTramaNavegant(fd_navegant, fd_finalitzacio, trama) != 0) {  //informacio inicial de odysseus
         close(fd_navegant);
         finalitzarNavegant(control);
         return NULL;
@@ -499,7 +498,7 @@ void *atendreOdysseusIsland(void *arg) {
         finalitzarNavegant(control);
         return NULL;
     }
-    resposta = malloc(sizeof("Sense memoria"));
+    resposta = malloc(sizeof("Sense memoria")); //REVISAR Suposem que la resposta mai pot ser mes llarga que "Sense memoria" i potser lo correcte seria reservar pel missatge de resposta i no per la frase literal.
     if (resposta == NULL) {
         close(fd_navegant);
         finalitzarNavegant(control);
@@ -510,19 +509,19 @@ void *atendreOdysseusIsland(void *arg) {
         write(1, missatge, longitud);
         free(missatge);
     }
-    missatge = NULL;
+    missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
     resultat_port = registrarArribada(port, configuracio->capacitat_port, &vaixell, mutex_port);
     if (resultat_port == 1) {
         strcpy(resposta, "DOCKED");
         longitud = asprintf(&missatge, ">>> %s entered the port.\n", vaixell.nom);
         if (longitud < 0) {
-            missatge = NULL;
+            missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
         }
     } else if (resultat_port == 2) {
         strcpy(resposta, "WAIT");
         longitud = asprintf(&missatge, ">>> Port full. %s waiting offshore in the FIFO queue.\n", vaixell.nom);
         if (longitud < 0) {
-            missatge = NULL;
+            missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
         }
     } else {
         strcpy(resposta, "Sense memoria");
@@ -536,7 +535,7 @@ void *atendreOdysseusIsland(void *arg) {
             write(1, missatge, longitud);
         }
         free(missatge);
-        missatge = NULL;
+        missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
         if (resultat_port == 2 && confirmarEspera(port, fd_navegant, mutex_port) == 1) {
             resultat = notificarEntradaPort(&vaixell);
         }
@@ -545,8 +544,7 @@ void *atendreOdysseusIsland(void *arg) {
             if (tipus == TIPUS_NACK) {
                 break;
             }
-            if (tipus == TIPUS_LIST_MARKET || tipus == TIPUS_BUY || tipus == TIPUS_SELL ||
-                tipus == TIPUS_BUY_MAP || tipus == TIPUS_SORTIDA_ILLA) {
+            if (tipus == TIPUS_LIST_MARKET || tipus == TIPUS_BUY || tipus == TIPUS_SELL ||tipus == TIPUS_BUY_MAP || tipus == TIPUS_SORTIDA_ILLA) {
                 if (trama[POSICIO_FLAGS] != FLAG_PETICIO) {
                     resultat = enviarNack(fd_navegant, "INVALID_FLAGS");
                     continue;
@@ -618,7 +616,6 @@ int main(int argc, char *argv[]) {
     FilNavegant *navegant = NULL;
     char *missatge = NULL, *nom_programa = argv[0];
     int resultat = 0, caracters_escrits = 0, fd_navegant = -1, preparat = 0;
-
     if (argc != 3) {
         caracters_escrits = asprintf(&missatge, "Usage: %s <config.dat> <stock.db>\n", nom_programa);
         if (caracters_escrits >= 0) {
@@ -627,7 +624,6 @@ int main(int argc, char *argv[]) {
         }
         return 1;
     }
-
     resultat = carregarConfiguracioIlla(argv[1], &configuracio);
     if (resultat == 0) {
         resultat = validarRutes(&configuracio);
@@ -660,10 +656,10 @@ int main(int argc, char *argv[]) {
     }
     fd_avis_finalitzacio = navegants.finalitzacio[1];
     signal(SIGINT, gestionarSigint);
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN); //REVISAR 
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);
     if (fd_servidor < 0) {
-        signal(SIGINT, SIG_IGN);
+        signal(SIGINT, SIG_IGN); //REVISAR
         recollirNavegants(&navegants, 1);
         write(2, "Error: no s'ha pogut obrir el servidor d'Island.\n",strlen("Error: no s'ha pogut obrir el servidor d'Island.\n"));
         pthread_mutex_destroy(&mutex_port);
@@ -682,20 +678,20 @@ int main(int argc, char *argv[]) {
     }
 
     while (1) {
-        recollirNavegants(&navegants, 0);
-        preparat = esperarNavegant(fd_servidor, navegants.finalitzacio[0]);
-        if (preparat == 2) {
+        recollirNavegants(&navegants, 0); // recullim els navegants que han acabat i alliberem la memoria
+        preparat = esperarNavegant(fd_servidor, navegants.finalitzacio[0]); // espera que arribi un nou navegant o que algun acabi
+        if (preparat == 2) { // algun navegant ha acabat
             break;
         }
-        if (preparat == 0) {
+        if (preparat == 0) { // cap arribada ni finalitzacio
             continue;
         }
-        if (preparat < 0) {
+        if (preparat < 0) { // error select()
             write(2, "Error: select d'Island.\n", strlen("Error: select d'Island.\n"));
             resultat = 1;
             break;
         }
-        fd_navegant = accept(fd_servidor, NULL, NULL);
+        fd_navegant = accept(fd_servidor, NULL, NULL); // accepta un nou navegant
         if (fd_navegant < 0) {
             if (errno != EINTR) {
                 write(2, "Error: accept d'Island.\n", strlen("Error: accept d'Island.\n"));
@@ -734,7 +730,7 @@ int main(int argc, char *argv[]) {
         free(missatge);
     }
 
-    signal(SIGINT, SIG_IGN);
+    signal(SIGINT, SIG_IGN); //REVISAR realment fa falta?
     recollirNavegants(&navegants, 1);
     free(port.atracats);
     free(port.fifo);

@@ -89,9 +89,7 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
     pthread_mutex_lock(mutex_viatges);
     for (i = 0; i < configuracio->nombre_viatges; i++) {
         viatge = &configuracio->viatges[i];
-        if (viatge->disponible == 0 && viatge->fracassat == 0 &&
-            viatge->identificador != viatge_actual &&
-            strcmp(viatge->odysseus_assignat, nom_odysseus) == 0) {
+        if (viatge->disponible == 0 && viatge->fracassat == 0 &&viatge->identificador != viatge_actual && strcmp(viatge->odysseus_assignat, nom_odysseus) == 0) {
             viatge->fracassat = 1;
         }
         if (configuracio->viatges[i].disponible == 1) {
@@ -121,7 +119,7 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
         resultat = crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
         free(dades);
         dades = NULL;
-        if (resultat != 0) {
+        if (resultat != 0) { //REVISAR: Realment no hauria de passar, ho hauriem de controlar abans de crear la trama?
             crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,(unsigned char *)"Viatge massa llarg", 18);
             resultat = enviarTrama(fd_navegant, trama);
             break;
@@ -283,8 +281,7 @@ void *atendreOdysseus(void *arg) {
         return NULL;
     }
     longitud = trama[POSICIO_LONGITUD];
-    if (trama[POSICIO_FLAGS] != FLAG_PETICIO ||
-        longitud <= 0 || longitud > MIDA_DADES) {
+    if (trama[POSICIO_FLAGS] != FLAG_PETICIO ||longitud <= 0 || longitud > MIDA_DADES) {
         if (trama[POSICIO_FLAGS] != FLAG_PETICIO) {
             enviarNack(fd_navegant, "INVALID_FLAGS");
         } else {
@@ -302,8 +299,7 @@ void *atendreOdysseus(void *arg) {
         finalitzarNavegant(control);
         return NULL;
     }
-    if (crearTrama(trama, TIPUS_CONNECT_ITHACA, FLAG_RESPOSTA_OK,(unsigned char *)"OK", 2) != 0 ||
-        enviarTrama(fd_navegant, trama) != 0) {
+    if (crearTrama(trama, TIPUS_CONNECT_ITHACA, FLAG_RESPOSTA_OK,(unsigned char *)"OK", 2) != 0 ||enviarTrama(fd_navegant, trama) != 0) {
         close(fd_navegant);
         finalitzarNavegant(control);
         return NULL;
@@ -386,7 +382,7 @@ int main(int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN); //REVISAR
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);
     if (fd_servidor < 0) {
-        signal(SIGINT, SIG_IGN);
+        signal(SIGINT, SIG_IGN); //REVISAR (REALMENT ES NECESSARI?, JA QUE EL PROCES ACABA I SUPER RAPIDAMENT)
         recollirNavegants(&navegants, 1);
         write(2, "Error: no s'ha pogut obrir el servidor d'Ithaca.\n", strlen("Error: no s'ha pogut obrir el servidor d'Ithaca.\n"));
         alliberarConfiguracioItaca(&configuracio);
@@ -400,20 +396,20 @@ int main(int argc, char *argv[]) {
     }
 
     while (1) {
-        recollirNavegants(&navegants, 0);
-        preparat = esperarNavegant(fd_servidor, navegants.finalitzacio[0]);
-        if (preparat == 2) {
+        recollirNavegants(&navegants, 0); //Revisem si algun thread ha acabat i el recollim
+        preparat = esperarNavegant(fd_servidor, navegants.finalitzacio[0]); //Esperem a que algun navegant arribi o que el senyal de finalitzacio arribi
+        if (preparat == 2) { //senyal de finalitzacio, sortim del bucle
             break;
         }
-        if (preparat == 0) {
+        if (preparat == 0) { //no hi ha cap navegant ni senyal de finalitzacio, tornem a esperar
             continue;
         }
-        if (preparat < 0) {
+        if (preparat < 0) { //error en el select
             write(2, "Error: select d'Ithaca.\n", strlen("Error: select d'Ithaca.\n"));
             resultat = 1;
             break;
         }
-        fd_navegant = accept(fd_servidor, NULL, NULL);
+        fd_navegant = accept(fd_servidor, NULL, NULL); // Esperem a que arribi un navegant i acceptem la connexio
         if (fd_navegant < 0) {
             if (errno != EINTR) {
                 write(2, "Error: accept d'Ithaca.\n", strlen("Error: accept d'Ithaca.\n"));
@@ -425,7 +421,7 @@ int main(int argc, char *argv[]) {
         if (dades_navegant == NULL) {
             write(2, "Error: malloc del navegant.\n", strlen("Error: malloc del navegant.\n"));
             close(fd_navegant);
-        } else {
+        } else { // Reservem un thread per atendre el navegant i li passem les dades necessaries
             dades_navegant->fd_navegant = fd_navegant;
             dades_navegant->fd_finalitzacio = navegants.finalitzacio[0];
             dades_navegant->configuracio = &configuracio;
@@ -449,7 +445,7 @@ int main(int argc, char *argv[]) {
         free(missatge);
     }
 
-    signal(SIGINT, SIG_IGN);
+    signal(SIGINT, SIG_IGN); //REVISAR (REALMENT ES NECESSARI?, JA QUE EL PROCES ACABA I SUPER RAPIDAMENT)
     recollirNavegants(&navegants, 1);
     alliberarConfiguracioItaca(&configuracio);
     pthread_mutex_destroy(&mutex_viatges);

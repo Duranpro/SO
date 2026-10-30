@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     }
 
     signal(SIGINT, gestionarSigint);
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN); //REVISAR: potser no cal ignorar SIGPIPE
     caracters_escrits = asprintf(&missatge,"Odysseus %s is ready to sail.\n", configuracio.nom);
     if (caracters_escrits >= 0) {
         write(1, missatge, caracters_escrits);

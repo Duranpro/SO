@@ -1703,8 +1703,7 @@ int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa
  * @Retorn: Retorna 0 en arribar a EOF i -1 si es produeix un error.
  *
  ************************************************/
-int executarTerminal(int *finalitzar_programa, ConfiguracioOdisseu *configuracio,
-                     int *fd_ithaca, int *fd_illa) {
+int executarTerminal(int *finalitzar_programa, ConfiguracioOdisseu *configuracio,int *fd_ithaca, int *fd_illa) {
     Comanda comanda = {0};
     int resultat_analisi = 0, finalitzat = 0, resultat = 0;
     char *linia = NULL;
@@ -1726,8 +1725,7 @@ int executarTerminal(int *finalitzar_programa, ConfiguracioOdisseu *configuracio
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_ACCEPT) {
                 resultat = executarAccept(configuracio, fd_ithaca, comanda.valor);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_SAIL) {
-                resultat = executarSail(configuracio, fd_ithaca, fd_illa,
-                                        comanda.argument, finalitzar_programa);
+                resultat = executarSail(configuracio, fd_ithaca, fd_illa,comanda.argument, finalitzar_programa);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_LIST_MARKET) {
                 resultat = executarListMarket(configuracio, fd_illa, configuracio->ubicacio_actual);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_BUY) {

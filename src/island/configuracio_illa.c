@@ -342,7 +342,6 @@ int carregarStock(char *nom_fitxer, ConfiguracioIlla *configuracio) {
  ************************************************/
 void alliberarConfiguracioIlla(ConfiguracioIlla *configuracio) {
     int i = 0;
-
     free(configuracio->nom);
     free(configuracio->ruta_carpeta);
     free(configuracio->ip);

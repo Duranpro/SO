@@ -26,6 +26,7 @@
  *
  ************************************************/
 int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, unsigned char *dades, int longitud) {
+    /* REVISAR: trama i dades positives ja son valides als cridadors actuals; els controls NULL es poden simplificar amb aquest contracte. Conservar els limits de longitud. */
     if (trama == NULL || longitud < 0 || longitud > MIDA_DADES) {
         return -1;
     }
@@ -51,6 +52,7 @@ int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, u
  * @Retorn: Retorna 0 si escriu MIDA_TRAMA bytes i -1 altrament.
  *
  ************************************************/
+/* REVISAR: el bucle completa escriptures parcials TCP, pero l annex II demana un sol write de 256 bytes. Resoldre el criteri abans de canviar-lo. */
 int enviarTrama(int fd, unsigned char *trama) {
     int bytes_escrits = 0, total_escrit = 0;
 
@@ -73,6 +75,7 @@ int enviarTrama(int fd, unsigned char *trama) {
  *          i -1 si hi ha un error o la connexio es tanca amb la trama incompleta.
  *
  ************************************************/
+/* REVISAR: el bucle completa lectures parcials TCP, pero l annex II demana un sol read de 256 bytes. Un sol read no garanteix una trama completa. */
 int rebreTrama(int fd, unsigned char *trama) {
     int bytes_llegits = 0, total_llegit = 0;
 

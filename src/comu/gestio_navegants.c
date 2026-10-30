@@ -156,6 +156,7 @@ int esperarPeticioNavegant(int fd_navegant, int fd_finalitzacio) {
  * @Retorn: Retorna 0 amb trama completa, 1 amb finalitzacio o EOF inicial
  *          i -1 amb error o EOF a mitja trama.
  ************************************************/
+/* REVISAR: mateix criteri que rebreTrama sobre lectures parcials i annex II; conservar la vigilancia de la pipe per poder finalitzar els fils. */
 int rebreTramaNavegant(int fd_navegant, int fd_finalitzacio, unsigned char *trama) {
     int total_llegit = 0, bytes_llegits = 0, resultat = 0;
 

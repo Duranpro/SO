@@ -215,6 +215,7 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
             free(missatge);
             return resultat;
         }
+        /* REVISAR: strlen(dades) != longitud ja s ha comprovat abans; aquesta segona comprovacio sobra. */
         if (trama[POSICIO_FLAGS] != FLAG_RESPOSTA_OK || (int)strlen(dades) != longitud) {
             resultat = -1;
             break;
@@ -334,6 +335,7 @@ int sortirIlla(ConfiguracioOdisseu *configuracio, int *fd_illa) {
         if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR) {
             escriureMissatge("Error: Island ha rebutjat la sortida.\n");
             return -1;
+        /* REVISAR: aquest bloc nomes assigna resultat = 0 quan ja val 0; el control posterior ja rebutja longitud o contingut incorrectes. */
         }
         if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK && longitud == 2 && strcmp(dades, "OK") == 0) {
             resultat = 0;
@@ -426,6 +428,7 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
             camps[nombre_camps++] = camp;
             camp = strtok(NULL, "&");
         }
+        /* REVISAR: FLAGS ja nomes pot ser OK: els valors invalids s han rebutjat i ERROR ja ha retornat. Conservar els controls de camps. */
         if (trama[POSICIO_FLAGS] != FLAG_RESPOSTA_OK || nombre_camps != 5 || camp != NULL ||
             !esNumero(camps[0]) || !esNumero(camps[1]) || !esNumero(camps[3]) ||
             !esNumero(camps[4]) || atoi(camps[0]) != index || atoi(camps[1]) < index ||
@@ -453,10 +456,12 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
             }
             escriureMissatge(missatge);
             free(missatge);
+            /* REVISAR: aquest reset i el del final de la iteracio son prescindibles al flux actual; el proper asprintf assigna el punter i no hi ha free comu posterior. */
             missatge = NULL;
         }
         quantitat = atoi(camps[3]);
         preu = atoi(camps[4]);
+        /* REVISAR: quantitat i preu no poden ser negatius despres d esNumero i atoi; conservar total i controls especifics de MAP. */
         if (atoi(camps[1]) != total || quantitat < 0 || preu < 0 ||
             (index == total && (strcmp(camps[2], "MAP") != 0 || quantitat != 1 || preu != 50)) ||
             (index < total && strcasecmp(camps[2], "MAP") == 0)) {
@@ -465,6 +470,7 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
             break;
         }
         if (index == total) {
+            /* REVISAR: text fix; cridar escriureMissatge directament i separar la branca del free(missatge) comu per evitar alliberar un punter anterior. */
             if (asprintf(&missatge, "Map 50 gold\n") < 0) {
                 free(mercat);
                 return -1;
@@ -547,6 +553,7 @@ int intercanviarAliments(int *fd_illa, int tipus, char *producte, int quantitat,
             }
             escriureMissatge(missatge);
             free(missatge);
+            /* REVISAR: reset prescindible abans del retorn; no hi ha un altre free(missatge) en aquest cami. */
             missatge = NULL;
             return 0;
         }
@@ -558,6 +565,7 @@ int intercanviarAliments(int *fd_illa, int tipus, char *producte, int quantitat,
             kg != NULL && or != NULL && strtok(NULL, "&") == NULL && strcmp(estat, "OK") == 0 &&
             strcmp(nom, producte) == 0 && esNumero(kg) && atoi(kg) == quantitat && esNumero(or)) {
             *import = atoi(or);
+            /* REVISAR: esNumero(or) ja garanteix un int no negatiu; es pot retornar 1 directament despres d atoi. */
             if (*import >= 0) {
                 return 1;
             }
@@ -586,6 +594,7 @@ int executarBuy(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte,
     if (strcasecmp(producte, "MAP") == 0) {
         return executarBuyMap(configuracio, fd_illa, quantitat);
     }
+    /* REVISAR: quantitat positiva ja es garanteix al parser per tots els cridadors actuals; es pot treure quantitat <= 0, conservant el control de connexio. */
     if (*fd_illa < 0 || quantitat <= 0) {
         return escriureMissatge("Error: cal estar atracat i comprar un aliment.\n");
     }
@@ -650,6 +659,7 @@ int executarBuy(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte,
         }
         escriureMissatge(missatge);
         free(missatge);
+        /* REVISAR: reset prescindible al flux actual; no hi ha cap altre us de missatge en aquesta funcio. */
         missatge = NULL;
     } else if (resultat == 1) {
         close(*fd_illa);
@@ -675,6 +685,7 @@ int executarSell(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte
     char *missatge = NULL;
     int i = 0, index = -1, import = 0, resultat = 0;
 
+    /* REVISAR: quantitat positiva ja es valida al parser; conservar els controls de connexio i exclusio de MAP. */
     if (*fd_illa < 0 || quantitat <= 0 || strcasecmp(producte, "MAP") == 0) {
         return escriureMissatge("Error: cal estar atracat i vendre un aliment.\n");
     }
@@ -695,6 +706,7 @@ int executarSell(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte
         }
         escriureMissatge(missatge);
         free(missatge);
+        /* REVISAR: reset prescindible al flux actual; no hi ha cap altre us de missatge en aquesta funcio. */
         missatge = NULL;
     } else if (resultat == 1) {
         close(*fd_illa);
@@ -716,6 +728,7 @@ int executarSell(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte
  * @Retorn: Retorna 0 si pot escriure i -1 si falla la reserva.
  *
  ************************************************/
+/* REVISAR: asprintf nomes copia text per escriure l original. Escriure text directament i comprovar write; ara es retorna exit encara que write falli. */
 int escriureMissatge(char *text) {
     int caracters_escrits = 0;
     char *missatge = NULL;
@@ -923,6 +936,7 @@ int analitzarComanda(char *linia, Comanda *comanda) {
  * @Retorn: Retorna 0 si pot escriure i -1 si es produeix un error.
  *
  ************************************************/
+/* REVISAR: copiarText reserva memoria per literals de sintaxi; cada case pot retornar escriureMissatge amb el literal, sense reserva ni free. */
 int mostrarUsComanda(int tipus) {
     char *us = NULL;
     int resultat = -1;
@@ -1032,6 +1046,7 @@ int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
         enviarNack(*fd_ithaca, "INVALID_LENGTH");
         resultat = -1;
     }
+    /* REVISAR: TYPE ja es valida abans i amb error resultat deixa de ser 0; aquesta segona comprovacio de TYPE sobra. */
     if (resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_CONNECT_ITHACA &&
         trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK &&
         trama[POSICIO_LONGITUD] == 2) {
@@ -1163,6 +1178,7 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
             }
             resultat = escriureMissatge(missatge);
             free(missatge);
+            /* REVISAR: reset prescindible; el seguent asprintf reassigna missatge i no hi ha free comu fora d aquest bloc. */
             missatge = NULL;
             if (resultat != 0) {
                 free(viatges);
@@ -1238,6 +1254,7 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
         enviarNack(*fd_ithaca, "INVALID_LENGTH");
         resultat = -1;
     }
+    /* REVISAR: TYPE i limit superior de longitud ja es validen abans; amb resultat == 0 no cal repetir-los. */
     if (resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_ACCEPT &&
         trama[POSICIO_LONGITUD] <= MIDA_DADES) {
         longitud = trama[POSICIO_LONGITUD];
@@ -1419,6 +1436,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
             }
             resultat = escriureMissatge(missatge);
             free(missatge);
+            /* REVISAR: reset prescindible al flux actual; els usos posteriors de missatge estan precedits per asprintf comprovat. */
             missatge = NULL;
             if (resultat != 0) {
                 return -1;
@@ -1474,6 +1492,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                 resultat = -1;
             }
             if (resultat != 0 ||
+                /* REVISAR: TYPE ja es valida immediatament abans; conservar resultat, FLAGS OK, longitud 6 i contingut DOCKED. */
                 trama[POSICIO_TIPUS] != TIPUS_ARRIBADA_ILLA ||
                 trama[POSICIO_FLAGS] != FLAG_RESPOSTA_OK ||
                 trama[POSICIO_LONGITUD] != 6 ||
@@ -1576,6 +1595,7 @@ int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *d
         }
         if (resultat == 0) {
             longitud = trama[POSICIO_LONGITUD];
+            /* REVISAR: TYPE i longitud maxima ja estan validats; dins resultat == 0 nomes cal diferenciar FLAGS OK d ERROR. */
             if (trama[POSICIO_TIPUS] == TIPUS_ARRIBADA_ILLA &&
                 trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK && longitud <= MIDA_DADES) {
                 memcpy(dades, trama + POSICIO_DADES, longitud);
@@ -1587,6 +1607,7 @@ int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *d
                     }
                     resultat = escriureMissatge(missatge);
                     free(missatge);
+                    /* REVISAR: aquest reset i el despres del log DOCKED son prescindibles; no hi ha free comu posterior i el proper us reassigna amb asprintf. */
                     missatge = NULL;
                     if (resultat != 0) {
                         return -1;

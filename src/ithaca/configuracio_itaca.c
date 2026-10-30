@@ -59,6 +59,7 @@ int carregarConfiguracioItaca(char *nom_fitxer, ConfiguracioItaca *configuracio)
             resultat = -1;
         } else {
             camp = strtok(linia, " ");
+            /* REVISAR: el format de configuracio es pot assumir correcte; camp == NULL i el control del token port son prescindibles. Conservar errors de lectura i copiarText. */
             if (camp == NULL || copiarText(&configuracio->ip, camp) != 0) {
                 resultat = -1;
             } else {
@@ -116,6 +117,7 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     configuracio->nombre_viatges++;
 
     camp = strtok(linia, " ");
+    /* REVISAR: els controls de camps de voyages.dat nomes es poden treure si tambe assumim correcte aquest fitxer proporcionat; conservar errors de copiarText. */
     if (camp == NULL || copiarText(&viatge->nom_objecte, camp) != 0) {
         return -1;
     }
@@ -153,6 +155,7 @@ int carregarViatges(char *nom_fitxer, ConfiguracioItaca *configuracio) {
         resultat = -1;
     } else {
         linia = llegirLinia(fd);
+        /* REVISAR: llegirLinia retorna NULL tant per EOF com per error; aquest bucle pot acceptar viatges carregats parcialment sense informar de la fallada. */
         while (linia != NULL && resultat == 0) {
             resultat = afegirViatge(linia, configuracio);
             free(linia);

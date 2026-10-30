@@ -58,6 +58,7 @@ int afegirRuta(char *linia, ConfiguracioIlla *configuracio) {
     configuracio->nombre_rutes++;
 
     camp = strtok(linia, " ");
+    /* REVISAR: el format de configuracio es pot assumir correcte; es pot treure camp == NULL, pero conservar el control de copiarText. Mateix criteri per IP i port seguents. */
     if (camp == NULL || copiarText(&ruta->nom_illa, camp) != 0) {
         return -1;
     }
@@ -121,6 +122,7 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
             resultat = -1;
         } else {
             camp = strtok(linia, " ");
+            /* REVISAR: es poden simplificar els controls de tokens IP/port per la garantia de format; conservar els errors de llegirLinia i copiarText. */
             if (camp == NULL || copiarText(&configuracio->ip, camp) != 0) {
                 resultat = -1;
             } else {
@@ -149,6 +151,7 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
 
     if (resultat == 0) {
         linia = llegirLinia(fd);
+        /* REVISAR: comparar el marcador es prescindible amb format correcte; linia == NULL s ha de conservar per errors de lectura o memoria. */
         if (linia == NULL || strcmp(linia, "--- ROUTES ---") != 0) {
             resultat = -1;
         }
@@ -157,6 +160,7 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
     }
     if (resultat == 0) {
         linia = llegirLinia(fd);
+        /* REVISAR: NULL tambe significa error de lectura/reserva a llegirLinia; aquest bucle pot acceptar una configuracio parcial com si fos EOF correcte. */
         while (linia != NULL && resultat == 0) {
             resultat = afegirRuta(linia, configuracio);
             free(linia);
@@ -193,6 +197,7 @@ void alliberarConfiguracioSphragis(SPHRAGIS_Island *illa, int nombre_rutes) {
 
     if (illa->known_islands != NULL) {
         for (i = 0; i < nombre_rutes; i++) {
+            /* REVISAR: free(NULL) es valid; aquest if interior sobra. Conservar el control exterior per no indexar un array NULL si falla malloc. */
             if (illa->known_islands[i] != NULL) {
                 free(illa->known_islands[i]);
             }
@@ -218,6 +223,7 @@ void conservarRutesValides(ConfiguracioIlla *configuracio, SPHRAGIS_Island *illa
     for (i = 0; i < nombre_original; i++) {
         ruta_valida = 0;
         for (j = 0; j < illa_sphragis->known_island_count; j++) {
+            /* REVISAR: SPHRAGIS compacta els supervivents; dins del recompte retornat correctament no hi ha NULL i aquest control es redundant. */
             if (illa_sphragis->known_islands[j] != NULL &&
                 strcmp(configuracio->rutes[i].nom_illa, illa_sphragis->known_islands[j]) == 0) {
                 ruta_valida = 1;
@@ -270,6 +276,7 @@ int validarRutes(ConfiguracioIlla *configuracio) {
     if (resultat >= 0) {
         conservarRutesValides(configuracio, &illa_sphragis);
     } else {
+        /* REVISAR: missatge fix; es pot escriure directament sense asprintf ni free, gestionant el resultat de write. */
         caracters_escrits = asprintf(&missatge, "Error: SPHRAGIS no ha pogut validar les rutes.\n");
         if (caracters_escrits >= 0) {
             write(2, missatge, caracters_escrits);

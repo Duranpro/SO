@@ -38,6 +38,7 @@ int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
         return -1;
     }
     camp = strtok(linia, " ");
+    /* REVISAR: amb format de configuracio garantit, els controls de camp absent del nom, IP i port es poden treure. Conservar errors de llegirLinia i copiarText. */
     if (camp == NULL || copiarText(&configuracio->nom, camp) != 0) {
         free(linia);
         return -1;
@@ -61,6 +62,7 @@ int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
         return -1;
     }
     camp = strtok(linia, " ");
+    /* REVISAR: mateix criteri per IP i port inicials: simplificar tokens absents, conservant la gestio d errors de lectura i reserva. */
     if (camp == NULL || copiarText(&configuracio->ip_illa_inicial, camp) != 0) {
         free(linia);
         return -1;
@@ -135,6 +137,7 @@ int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
             return -1;
         }
         camp = strtok(linia, " ");
+        /* REVISAR: el format garantit permet treure camp == NULL i el control del token quantitat seguent; conservar el retorn de copiarText. */
         if (camp == NULL ||
             copiarText(&configuracio->aliments[i].nom, camp) != 0) {
             free(linia);

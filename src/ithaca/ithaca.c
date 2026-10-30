@@ -62,7 +62,7 @@ void gestionarSigint(int senyal __attribute__((unused))) {
  *
  ************************************************/
 int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odysseus,int viatge_actual) {
-    unsigned char trama[MIDA_TRAMA]; //REVISAR UNSIGNED
+    unsigned char trama[MIDA_TRAMA]; // REVISAR: conservar unsigned char; FLAGS 0x80/0xC0 i longitud fins a 253 no caben en un char signat.
     char *dades = NULL, *missatge = NULL;
     int *indexs_disponibles = NULL;
     int i = 0, total = 0, longitud = 0, resultat = 0;
@@ -103,6 +103,7 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
         write(1, missatge, longitud);
         free(missatge);
     }
+    /* REVISAR: aquest reset es prescindible; missatge ja no es consulta ni s allibera en aquesta funcio. */
     missatge = NULL;
     if (total == 0) {
         free(indexs_disponibles);
@@ -119,7 +120,8 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
         resultat = crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
         free(dades);
         dades = NULL;
-        if (resultat != 0) { //REVISAR: Realment no hauria de passar, ho hauriem de controlar abans de crear la trama?
+        /* REVISAR: aquest error si que es possible amb dades serialitzades de mes de 253 bytes; no eliminar-lo sense garantir abans la mida. */
+        if (resultat != 0) { // REVISAR: una cadena de format correcte encara pot superar MIDA_DADES; conservar el control de mida.
             crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,(unsigned char *)"Viatge massa llarg", 18);
             resultat = enviarTrama(fd_navegant, trama);
             break;
@@ -165,11 +167,13 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
         crearTrama(trama, TIPUS_ACCEPT, FLAG_RESPOSTA_ERROR,(unsigned char *)"Ja tens un viatge actiu", 23);
         return enviarTrama(fd_navegant, trama);
     }
+    /* REVISAR: FLAGS, longitud, copia, terminador, esNumero i strlen ja estan validats a l inici; aquest segon bloc repeteix la mateixa feina. */
     if (peticio[POSICIO_FLAGS] == FLAG_PETICIO && longitud > 0 && longitud <= MIDA_DADES) {
         memcpy(dades, peticio + POSICIO_DADES, longitud);
         dades[longitud] = '\0';
         if (esNumero(dades) == 1 && (int)strlen(dades) == longitud) {
             /* L'identificador no pot superar el nombre de viatges carregats. */
+            /* REVISAR: esNumero ja garanteix rang int; substituir el bucle per atoi i comprovar l ID contra nombre_viatges abans d indexar. */
             for (i = 0; i < longitud; i++) {
                 if (identificador > configuracio->nombre_viatges / 10 ||(identificador == configuracio->nombre_viatges / 10 &&dades[i] - '0' > configuracio->nombre_viatges % 10)) {
                     identificador = 0;
@@ -187,6 +191,7 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
             return -1;
         }
         pthread_mutex_lock(mutex_viatges);
+        /* REVISAR: longitud_resposta >= 0 es redundant despres del retorn per asprintf fallit; conservar disponibilitat, mutex i limit superior. */
         if (viatge->disponible == 1 && longitud_resposta >= 0 && longitud_resposta <= MIDA_DADES) {
             viatge->disponible = 0;
             strcpy(viatge->odysseus_assignat, nom_odysseus);
@@ -201,6 +206,7 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
                 write(1, missatge, longitud);
                 free(missatge);
             }
+            /* REVISAR: reset prescindible; missatge no es torna a consultar ni alliberar en aquesta funcio. */
             missatge = NULL;
         }
     }
@@ -244,6 +250,7 @@ int gestionarDesconnexio(int fd_navegant, unsigned char *peticio, char *nom_odys
         write(1, missatge, longitud);
         free(missatge);
     }
+    /* REVISAR: reset prescindible immediatament abans de retornar. */
     missatge = NULL;
     return 1;
 }
@@ -379,10 +386,10 @@ int main(int argc, char *argv[]) {
     }
     fd_avis_finalitzacio = navegants.finalitzacio[1];
     signal(SIGINT, gestionarSigint);
-    signal(SIGPIPE, SIG_IGN); //REVISAR
+    signal(SIGPIPE, SIG_IGN); // REVISAR: conservar; un client desconnectat no ha de matar el servidor quan fa write.
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);
     if (fd_servidor < 0) {
-        signal(SIGINT, SIG_IGN); //REVISAR (REALMENT ES NECESSARI?, JA QUE EL PROCES ACABA I SUPER RAPIDAMENT)
+        signal(SIGINT, SIG_IGN); // REVISAR: conservar; evita que el handler escrigui a la pipe durant o despres del seu tancament.
         recollirNavegants(&navegants, 1);
         write(2, "Error: no s'ha pogut obrir el servidor d'Ithaca.\n", strlen("Error: no s'ha pogut obrir el servidor d'Ithaca.\n"));
         alliberarConfiguracioItaca(&configuracio);
@@ -439,13 +446,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* REVISAR: el text es fix; es pot escriure directament sense asprintf ni free, comprovant write i continuant la neteja si falla. */
     caracters_escrits = asprintf(&missatge, "Ithaca closes the harbor.\n");
     if (caracters_escrits >= 0) {
         write(1, missatge, caracters_escrits);
         free(missatge);
     }
 
-    signal(SIGINT, SIG_IGN); //REVISAR (REALMENT ES NECESSARI?, JA QUE EL PROCES ACABA I SUPER RAPIDAMENT)
+    signal(SIGINT, SIG_IGN); // REVISAR: conservar; evita que el handler escrigui a la pipe durant o despres del seu tancament.
     recollirNavegants(&navegants, 1);
     alliberarConfiguracioItaca(&configuracio);
     pthread_mutex_destroy(&mutex_viatges);

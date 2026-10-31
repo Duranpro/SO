@@ -33,6 +33,7 @@ typedef struct {
 } VaixellPort;
 
 typedef struct {
+    /* REVISAR CLASSE: places_ocupades i num_atracats es modifiquen junts i representen la mateixa quantitat; es pot usar nomes num_atracats per reduir estat duplicat. */
     int places_ocupades;
     VaixellPort *atracats;
     int num_atracats;
@@ -78,6 +79,11 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO || peticio[POSICIO_LONGITUD] != 1 ||peticio[POSICIO_DADES] != '1') {
         strcpy(error, "Quantitat de mapa invalida");
     }
+    /* REVISAR: eliminar aquest primer bucle: amb noms d'illa admesos per SPHRAGIS,
+     * IPv4 i port valids, la resposta ocupa com a maxim 59 bytes, comptant fins
+     * a 10 digits per a index i total; cap dins dels 253 bytes de dades.
+     * Conservar al segon bucle els controls d'error d'asprintf i crearTrama,
+     * i conservar el limit de longitud de crearTrama per als altres missatges. */
     for (i = 0; i < total && error[0] == '\0'; i++) {
         longitud = asprintf(&ruta, "OK&50&%d&%d&%s&%s&%d", i + 1, total,configuracio->rutes[i].nom_illa, configuracio->rutes[i].ip, configuracio->rutes[i].port);
         if (longitud < 0) {
@@ -86,7 +92,7 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
         }
         free(ruta);
         ruta = NULL;
-        if (longitud > MIDA_DADES) { //REVISAR: potser no caldria comprovar la longitud de la ruta, ja que es comprova a l'hora de crear la trama
+        if (longitud > MIDA_DADES) {
             strcpy(error, "Ruta massa llarga");
         }
     }
@@ -289,6 +295,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
  *
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
+    /* REVISAR CLASSE: mateix disseny de pipe de finalitzacio que Ithaca; guardar errno i reintentar s ha de valorar conjuntament amb el despertar dels fils. */
     int error_anterior = errno;
     char avis = 'F';
 
@@ -369,6 +376,7 @@ int notificarEntradaPort(VaixellPort *vaixell) {
  * @Retorn: Retorna 1 si aquest fil ha d'enviar DOCKED i 0 altrament.
  *
  ************************************************/
+/* REVISAR CLASSE: espera_notificada evita que un altre fil envi.i DOCKED abans de WAIT. Es logica propia necessaria pel disseny concurrent, no una funcio de llibreria estranya; no treure-la sense garantir aquest ordre. */
 int confirmarEspera(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex_port) {
     int i = 0, promogut = 0;
 
@@ -435,6 +443,7 @@ void alliberarPlacaPort(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex
         }
     }
     pthread_mutex_unlock(mutex_port);
+    /* REVISAR CLASSE: aqui un fil envia pel socket ates per un altre. Si es simplifica, valorar que cada fil envi.i les seves respostes, pero cal un avis que el desperti; no afegir nous mecanismes nomes per substituir aquest control. */
     if (promogut.fd_navegant >= 0 && promogut.espera_notificada == 1) {
         if (notificarEntradaPort(&promogut) != 0) {
             write(2, "Error: no s'ha pogut enviar DOCKED.\n",strlen("Error: no s'ha pogut enviar DOCKED.\n"));
@@ -656,7 +665,7 @@ int main(int argc, char *argv[]) {
     }
     fd_avis_finalitzacio = navegants.finalitzacio[1];
     signal(SIGINT, gestionarSigint);
-    signal(SIGPIPE, SIG_IGN); //REVISAR 
+    signal(SIGPIPE, SIG_IGN); 
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);
     if (fd_servidor < 0) {
         signal(SIGINT, SIG_IGN); //REVISAR

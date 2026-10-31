@@ -17,6 +17,7 @@ int iniciarNavegants(RegistreNavegants *registre) {
     if (pthread_mutex_init(&registre->mutex, NULL) != 0) {
         return -1;
     }
+    /* REVISAR CLASSE: pipe es coneguda, pero usar-la per avisar tots els fils amb select i EOF es un disseny nou respecte dels exemples. Cal explicar el flux complet abans de simplificar-lo. */
     if (pipe(registre->finalitzacio) != 0) {
         pthread_mutex_destroy(&registre->mutex);
         return -1;
@@ -72,11 +73,13 @@ void registrarNavegant(FilNavegant *navegant) {
  * @Retorn: ----.
  ************************************************/
 void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
+    /* REVISAR CLASSE: el punter al punter que desenllaca nodes es poc directe per al nivell dels Sx.c; un recorregut amb anterior i actual evita aquesta indireccio, mantenint nodes estables. */
     FilNavegant **posicio = NULL, *navegant = NULL;
 
     pthread_mutex_lock(&registre->mutex);
     if (finalitzar) {
         /* L'EOF de la pipe desperta tots els selects sense llegir-ne dades. */
+        /* REVISAR CLASSE: l EOF queda visible per tots els selects perque cap fil el consumeix; aquesta notificacio col.lectiva no surt als exemples basics de Pipes. No substituir-la per un unic byte llegit per un sol fil. */
         close(registre->finalitzacio[1]);
     }
     posicio = &registre->primers;
@@ -84,6 +87,7 @@ void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
         navegant = *posicio;
         if (finalitzar || navegant->acabat) {
             *posicio = navegant->seguent;
+            /* REVISAR CLASSE: aquest unlock abans de join es necessari: el fil ha de poder agafar el mateix mutex per marcar acabat. No fer join mantenint el bloqueig. */
             pthread_mutex_unlock(&registre->mutex);
             pthread_join(navegant->fil, NULL);
             free(navegant);
@@ -106,6 +110,7 @@ void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
  ************************************************/
 int esperarNavegant(int fd_servidor, int fd_finalitzacio) {
     fd_set descriptors;
+    /* REVISAR CLASSE: aquest timeout d un segon serveix per recollir fils acabats, no per rebre SIGINT (ja hi ha pipe). Valorar si cal aquesta revisio periodica; no es espera activa. */
     struct timeval temps = {1, 0};
     int resultat = 0;
     int maxim = fd_servidor;
@@ -125,6 +130,7 @@ int esperarNavegant(int fd_servidor, int fd_finalitzacio) {
         /* No consumim l'avis: tambe ha de despertar els fils navegants. */
         return 2;
     }
+    /* REVISAR CLASSE: errno/EINTR si que surt a teoria/Select/select.c. Per llegibilitat es pot expressar aquest ternari amb un if explicit; no eliminar el tractament d interrupcions. */
     return resultat < 0 && errno == EINTR ? 0 : resultat;
 }
 

@@ -114,7 +114,7 @@ int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
     configuracio->nombre_aliments = atoi(linia);
     free(linia);
     linia = NULL;
-    if (configuracio->nombre_aliments < 0) {
+    if (configuracio->nombre_aliments < 0) { // Revisar: assumint dades correctes segons enunciat, és una comprovació addicional.
         return -1;
     }
     if (configuracio->nombre_aliments == 0) {
@@ -138,8 +138,7 @@ int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
         }
         camp = strtok(linia, " ");
         /* REVISAR: el format garantit permet treure camp == NULL i el control del token quantitat seguent; conservar el retorn de copiarText. */
-        if (camp == NULL ||
-            copiarText(&configuracio->aliments[i].nom, camp) != 0) {
+        if (camp == NULL || copiarText(&configuracio->aliments[i].nom, camp) != 0) {
             free(linia);
             return -1;
         }

@@ -1,5 +1,12 @@
 # Revisió de comprovacions i simplicitat
 
+**Ampliació: nivell de classe.** Al final hi ha la revisió contrastada amb tots
+els materials de `teoria`. Els comentaris nous són `REVISAR CLASSE`.
+La revisió no canvia el comportament del programa. Les funcions de les llibreries absents dels
+materials es marquen com a candidates a revisar, no com a prohibicions
+expresses de l'enunciat. Les auxiliars particulars de les sessions no es
+consideren funcions disponibles al projecte ni motiu per substituir les existents.
+
 Revisió estàtica del codi propi de `src/`, contrastada amb
 `teoria/Practica_SO_2026-27_corregit.pdf`, `teoria/Plantejament.pdf` i
 `lib/sphragis.h`. Les línies corresponen al codi existent el 30/10/2026.
@@ -766,3 +773,303 @@ de finalització per tractar-ho com el tancament demanat per l'usuari.
 No incloc una substitució dels bucles de trames: la diferència entre el
 redactat de l'assignatura i les lectures parcials TCP s'ha de resoldre abans
 de canviar aquest comportament.
+
+## Revisió addicional: nivell dels estudiants i material de classe
+
+### Abast i criteri
+
+S'han inventariat els **16 PDFs, 51 fitxers `.c`, 1 `.h` i 7 `.txt`** de
+`teoria`. S'han contrastat les crides i els patrons dels fonts amb els materials;
+també s'han inspeccionat les diapositives amb codi en imatge. La còpia de
+`teoria/File Descriptors/Tema4.FileDescriptors.pdf` també s'ha inclòs.
+
+La referència principal són els S0–S6 de les subcarpetes, els altres exemples
+i els PDFs. Els `.txt` de l'arrel són evidència complementària: que una funció
+surti en una versió antiga vostra no implica que surti a la solució del professor.
+
+Distingeixo tres casos:
+
+1. **Vist als materials:** conservar, encara que el nom sembli poc habitual.
+2. **No localitzat:** substituir si voleu cenyir-vos estrictament a les funcions
+   mostrades i hi ha una alternativa clara. No significa que el professor ho
+   prohibeixi: aquesta és la restricció de simplicitat demanada en aquesta revisió.
+3. **Combinació pròpia més elaborada:** les primitives són conegudes, però el
+   disseny no apareix als exemples. Cal simplificar-lo o poder-lo explicar.
+
+Els noms propis com `confirmarEspera`, `reservarNavegant` o
+`intercanviarAliments` són funcions vostres. La seva absència dels apunts no
+és cap problema per si mateixa: s'ha de valorar què fan per dins.
+
+### Resultat per funció o mecanisme
+
+| Element del projecte | Evidència als materials | Decisió |
+| --- | --- | --- |
+| `open`, `read`, `write`, `close`, `lseek` | `teoria/File Descriptors/S0.c`, `teoria/Threads/S2.c` i `teoria/File Descriptors/file_descriptors_1.c` | Dins del nivell. Conservar. |
+| `malloc`, `realloc`, `free`, punters dobles de sortida | `teoria/File Descriptors/S0.c`, `teoria/Threads/S2.c` i `teoria/Select/S5_sol.c` | Dins del nivell. Un `char **` no és automàticament avançat. |
+| `asprintf`, `_GNU_SOURCE` | `teoria/File Descriptors/S0.c`, `teoria/Signals/S1.c` i `teoria/Threads/S2.c` | Vistos. Treure només reserves innecessàries, no substituir tot asprintf. |
+| `memcpy`, `memset`, serialització en buffers | `teoria/Sockets/S4_client.c` i `teoria/Sockets/S4_server.c` | Vistos. La serialització no és complexitat extra. |
+| `socket`, `bind`, `listen`, `accept`, `connect`, `htons`, `inet_pton`, `IPPROTO_TCP` | `teoria/Sockets/server.c`, `teoria/Sockets/client.c` i `teoria/Select/select.c` | Vistos. No cal canviar inet_pton per una funció menys clara. |
+| `pthread_create`, `pthread_join`, paràmetres en structs | `teoria/Threads/S2.c`, `teoria/Threads/example2.c` i `teoria/Sockets/S4_server.c` | Vistos. Un fil per client té base als exemples. |
+| `pthread_mutex_t`, `pthread_mutex_lock/unlock/destroy`; inicialització del mutex | `teoria/Tema3-Concurrencia-ExclusioMutua-Mutex-CA-v1.pdf`, diapositives 12–15; `teoria/Tema3-Semafors-Sincronitzacio-CA-v1.pdf`, diapositives 2 i 18 | Conservar els mutex del projecte: són l'eina indicada per protegir memòria entre fils. El PDF mostra PTHREAD_MUTEX_INITIALIZER; pthread_mutex_init és la inicialització dinàmica de la mateixa API. |
+| `SEM_constructor`, `SEM_init`, `SEM_wait`, `SEM_signal`, `SEM_destructor` | `teoria/Tema3-Semafors-Sincronitzacio-CA-v1.pdf`, diapositives 7–8, i `lib/semaphore_v2.h` | API del curs explícitament proporcionada i ara disponible a lib. No és un auxiliar particular de S5 ni implica substituir els mutex existents. |
+| `select`, `FD_ZERO`, `FD_SET`, `FD_ISSET`, `FD_SETSIZE` | `teoria/Select/S5_sol.c`, `teoria/Select/S5_trader.c`, `teoria/Select/select.c` i `teoria/Tema4.Select.pdf` | Vistos. El límit FD_SETSIZE també està contemplat a `teoria/Select/S5_sol.c`. |
+| `struct timeval`, paràmetre timeout | Signatura de select a `teoria/Tema4.Select.pdf`, diapositiva 3 | Té suport al material, encara que `teoria/Select/S5_trader.c` faci servir NULL com a timeout. |
+| `gettimeofday` i aritmètica de terminis en microsegons | No localitzats | Principal bloc temporal a revisar. Cal conservar el consum periòdic encara que hi hagi ordres. |
+| `signal`, `alarm`, `pause`, `SIG_IGN` | `teoria/Signals/S1.c`, `teoria/Signals/signals_1.c` i `teoria/Signals/signals_2.c` | Vistos. No introduir un mecanisme de senyals nou per simplificar un detall. |
+| `signal(SIGPIPE, SIG_IGN)` | `teoria/Select/S5_sol.c` i `teoria/Select/S5_trader.c` | Vist explícitament; conservar. |
+| `errno`, `EINTR` | `teoria/Select/select.c` tracta select interromput; `teoria/Tema4.Pipes.pdf` també esmenta errno | Vistos. Guardar/restaurar errno en un handler és un detall addicional del disseny actual. |
+| `__attribute__((unused))` | `teoria/Signals/signals_1.c`, `teoria/Threads/example1.c`, `teoria/Threads/slides_example1.c` i `teoria/Select/select.c` | Vist. No marcar-lo com a funció desconeguda ni treure'l per aparença. |
+| Lectures parcials acumulades | Última diapositiva de `teoria/Tema4.Sockets.pdf`: llegir els bytes pendents | Vist explícitament; actualitza la valoració anterior dels bucles de lectura. |
+| `pipe` | `teoria/Tema4.Pipes.pdf`, `teoria/Pipes/ex1.c`, `teoria/Pipes/ex2.c`, `teoria/Pipes/ex3.c`, `teoria/Pipes/ex4.c` i `teoria/Pipes/ex5.c` | La funció és vista. El seu ús per despertar tots els fils amb EOF és un patró propi més elaborat. |
+| `strtok` | Funció de `<string.h>` disponible al projecte | Conservar. Que les sessions facin servir un separador propi no obliga a substituir-la. El parseig amb strtok no es fa als gestors concurrents d'Island/Ithaca. |
+| `strcasecmp` | No localitzat | Alternativa estricta: comparació amb conversió ASCII en un bucle. Cal conservar case insensitive. |
+| `toupper` | No localitzat; `teoria/Threads/S2.c` converteix ASCII manualment | Substitució fàcil per als noms ASCII de la pràctica. |
+| `strstr` per trobar `&&` | No localitzat | Substituïble per un bucle curt que busqui dos separadors seguits. |
+| `memcmp` per a `DOCKED` | No localitzat | Substituïble per buffer acabat en NUL i strcmp, després de validar longitud. |
+| `strchr`, `strcmp`, `strcpy`, `strlen`, `atoi` | `teoria/Sockets/S4_server.c`, `teoria/Select/S5_sol.c` i `teoria/Select/S5_trader.c` | Vistos. No cal reimplementar-los tots. |
+| `SPHRAGIS_*` | Llibreria proporcionada (`lib/sphragis.h`, fora de `teoria/`) i ús requerit a `teoria/Practica_SO_2026-27_corregit.pdf` | Conservar. L'absència dels Sx.c no els fa opcionals. |
+
+### Parts de disseny que més revisaria
+
+**1. Registre de navegants i finalització.**
+
+`gestio_navegants.c/.h` combina una llista enllaçada, entrades estables, un
+mutex propi, marca d'acabat, recollida periòdica, pipe i select als fils.
+Cada peça té una funció, però el conjunt és força més elaborat que els arrays
+de fils de `teoria/Threads/S2.c` i `teoria/Sockets/S4_server.c`.
+
+- Primer canvi petit: substituir el recorregut amb `FilNavegant **posicio`
+  per punters `anterior` i `actual`. Manté el mateix esquema de memòria.
+- Alternativa de disseny: array dinàmic de **punters** a entrades reservades,
+  més semblant als arrays dels exemples. No usar un array de structs mogut
+  per realloc si els fils guarden punters als seus elements.
+- Conservar que `pthread_join` es fa sense tenir el bloqueig que el fil
+  necessita per marcar-se acabat. Fer join amb aquest bloqueig pot encallar-los.
+- La pipe és local a cada servidor: no substitueix la xarxa entre màquines
+  i no incompleix aquesta restricció del projecte.
+- No canviar-ho simplement per `pthread_cancel`: `teoria/Threads/S2.c` adverteix explícitament
+  de memòria filtrada en fils cancel·lats. El projecte ha d'alliberar recursos.
+
+**2. Pipe com a avís col·lectiu.**
+
+El handler escriu un byte; el principal detecta la pipe preparada, deixa
+d'acceptar connexions i tanca l'extrem d'escriptura durant la recollida.
+Els fils detecten la finalització sense consumir la pipe. Aquest esquema
+permet que tots es despertin; un sol byte consumit per un sol fil no seria
+un substitut equivalent.
+
+És una combinació de primitives conegudes, però no és el patró pare/fill
+de `teoria/Pipes/ex1.c`. L'anotació és «revisar el disseny i explicar-lo», no
+«pipe desconeguda, eliminar-la». Una alternativa ha de continuar desbloquejant
+els clients inactius abans dels join.
+
+**3. Temporització a esperarPort.**
+
+El càlcul amb `gettimeofday`, tres estructures timeval i microsegons és el
+bloc menys proper als Sx.c. `select` amb timeout té base a `teoria/Tema4.Select.pdf`; `alarm`
+també és conegut de `teoria/Signals/S1.c`. Qualsevol canvi ha de conservar aquests dos requisits:
+
+- MAP/STATUS no poden reiniciar indefinidament els cinc segons de consum.
+- No es pot fer `sleep(5)` al mateix camí que ha d'atendre teclat i DOCKED.
+
+No dono una substitució completa de gettimeofday per `temps.tv_sec = 5`
+a cada iteració: seria més curta però canviaria el funcionament. Tampoc
+proposo introduir altres APIs de rellotge absents dels materials.
+Si es manté la funció actual, es pot reduir la repetició del càlcul temporal
+amb una funció auxiliar petita, però això no elimina l'API no vista.
+
+**4. Port i ordre de notificacions.**
+
+`places_ocupades` i `num_atracats` s'incrementen i decrementen junts:
+es pot conservar només `num_atracats`. Les cues amb arrays i desplaçaments
+sí que s'assemblen a l'eliminació de clients de `teoria/Select/S5_sol.c`.
+
+`espera_notificada` i `confirmarEspera` són més subtils: eviten que una
+promoció feta per un altre fil enviï DOCKED abans que el fil d'arribada
+hagi enviat WAIT. No són controls gratuïts. Revisar qui envia a cada socket
+si es vol simplificar el protocol intern; no eliminar la bandera sola.
+
+### Exemples de versions més properes a classe
+
+Són alternatives documentades; no s'han aplicat als fonts.
+
+**Comparació ASCII sense strcasecmp**, seguint la conversió de `teoria/Threads/S2.c`:
+
+```c
+int igualSenseMajuscules(char *a, char *b) {
+    int i = 0;
+    char ca, cb;
+
+    while (a[i] != '\0' && b[i] != '\0') {
+        ca = a[i];
+        cb = b[i];
+        if (ca >= 'a' && ca <= 'z') {
+            ca = ca - 'a' + 'A';
+        }
+        if (cb >= 'a' && cb <= 'z') {
+            cb = cb - 'a' + 'A';
+        }
+        if (ca != cb) {
+            return 0;
+        }
+        i++;
+    }
+    return a[i] == b[i];
+}
+
+/* Abans: strcasecmp(paraules[1], "ITHACA") == 0 */
+/* Despres: igualSenseMajuscules(paraules[1], "ITHACA") == 1 */
+```
+
+Retorna 1 quan són iguals: no substituir mecànicament només el nom de
+strcasecmp deixant la comparació `== 0`. És una versió per a les paraules
+ASCII del protocol, no una funció general per a majúscules amb accents.
+
+**Nom en majúscules sense toupper:**
+
+```c
+for (i = 0; configuracio->nom[i] != '\0' && i < MIDA_NOM_ODYSSEUS - 1; i++) {
+    nom[i] = configuracio->nom[i];
+    if (nom[i] >= 'a' && nom[i] <= 'z') {
+        nom[i] = nom[i] - 'a' + 'A';
+    }
+}
+nom[i] = '\0';
+```
+
+**Buscar separadors dobles sense strstr:**
+
+```c
+int teSeparadorsDobles(char *text) {
+    int i = 0;
+
+    while (text[i] != '\0') {
+        if (text[i] == '&' && text[i + 1] == '&') {
+            return 1;
+        }
+        i++;
+    }
+    return 0;
+}
+```
+
+El control existent pot usar `teSeparadorsDobles(dades) == 1`, mantenint
+els altres controls de separador inicial/final, nombre de camps i longitud.
+
+**Comparar DOCKED sense memcmp**, només dins un camí on s'ha validat
+que la trama és del tipus correcte, FLAGS OK i longitud exactament 6:
+
+```c
+char resposta_port[7]; /* Declarar al principi de la funcio. */
+
+memcpy(resposta_port, trama + POSICIO_DADES, 6);
+resposta_port[6] = '\0';
+if (strcmp(resposta_port, "DOCKED") != 0) {
+    enviarNack(fd_espera, "INVALID_DATA");
+    break;
+}
+```
+
+**Fer explícit el retorn d'una interrupció**, sense operador ternari:
+
+```c
+if (resultat < 0 && errno == EINTR) {
+    return 0;
+}
+return resultat;
+```
+
+Aquest és un canvi de llegibilitat, no una eliminació d'errno/EINTR:
+`teoria/Select/select.c` ja mostra aquest tractament.
+
+### Precisió sobre la revisió anterior
+
+Els bucles de lectura de trames **sí que tenen suport explícit als apunts**:
+la darrera diapositiva de `teoria/Tema4.Sockets.pdf` explica que read no garanteix
+tots els bytes i indica llegir-ne la resta. També `teoria/Threads/S2.c` acumula lectures del fitxer.
+Els comentaris antics d'aquests bucles s'han aclarit. La discrepància amb
+el redactat de l'Annex II continua existint, però no s'ha de confondre amb
+«això no ho hem vist a classe».
+
+Amb els tres PDFs nous del Tema 3, queda corregida la valoració anterior:
+`pthread_mutex_*` sí que té suport als apunts i és adequat per als recursos
+compartits entre fils. No cal substituir els mutex de viatges, port, stock
+ni registre de navegants per semàfors.
+
+Els exemples docents mostren també printf, snprintf, cancel·lació amb fuites
+o esperes actives en alguns exercicis. No es poden traslladar automàticament
+al projecte: les restriccions de l'enunciat continuen aplicant-se. No he
+trobat printf, scanf, system, popen o stat als fonts propis actuals.
+
+### Prioritat de la revisió de classe
+
+1. Conservar els mutex per als recursos compartits entre fils, tal com
+   indica el Tema 3. No fer una migració a semàfors per motiu de nivell de classe.
+2. Revisar el bloc temporal i justificar o substituir gettimeofday sense
+   ajornar el consum amb cada ordre.
+3. Fer més directe el registre i el tancament dels fils; no reescriure
+   l'arquitectura sencera per reduir unes línies.
+4. Si es vol la restricció estricta de funcions, substituir strcasecmp,
+   toupper, strstr i memcmp per bucles o funcions de les llibreries disponibles.
+   Conservar strtok sense exigir un separador propi d'una sessió.
+5. Eliminar estat duplicat i reserves artificials, com ja indicava la primera
+   revisió. Conservar els controls exigits d'errors, protocol i recursos.
+
+Els comentaris de nivell de classe porten el prefix `REVISAR CLASSE`.
+S'han retirat els que recomanaven auxiliars particulars de les sessions.
+També s'han actualitzat els dos comentaris sobre E/S parcial a `trames.c`.
+No s'ha canviat el codi executable ni els materials de teoria.
+
+
+## Actualització amb el Tema 3 i semaphore_v2 a lib
+
+Aquesta actualització substitueix qualsevol valoració anterior que deia que
+els mutex no apareixien als apunts. S'han revisat:
+
+- `teoria/Tema3-Concurrencia-ExclusioMutua-Mutex-CA-v1.pdf` (16 pàgines).
+- `teoria/Tema3-MecanismesSincronitzacioExclusioMutua.pdf` (20 pàgines).
+- `teoria/Tema3-Semafors-Sincronitzacio-CA-v1.pdf` (18 pàgines).
+- `lib/semaphore_v2.h`, idèntic a `teoria/Semaphores/semaphore_v2.h`.
+
+### Què canvia en la revisió
+
+**Mutex: conservar-los.** Les diapositives 14–15 de
+`teoria/Tema3-Concurrencia-ExclusioMutua-Mutex-CA-v1.pdf` mostren
+`pthread_mutex_t`, `PTHREAD_MUTEX_INITIALIZER`, `pthread_mutex_lock`,
+`pthread_mutex_unlock` i `pthread_mutex_destroy`, amb creació de fils i join.
+No mostren una crida a `pthread_mutex_init` en aquests fragments: la seva
+inicialització és estàtica. La funció usada al projecte és la inicialització
+dinàmica de la mateixa API, no un mecanisme diferent de sincronització.
+
+Les diapositives 2 i 18 de
+`teoria/Tema3-Semafors-Sincronitzacio-CA-v1.pdf` especifiquen:
+
+- Threads, exclusió mútua: pthread_mutex.
+- Threads, sincronització: semàfors.
+- Processos o fork: semàfors per exclusió mútua i sincronització.
+
+Per tant, els mutex de viatges, port, stock i registre de fils **no s'han de
+marcar per substituir-los perquè siguin fora de classe**. Es retira el comentari
+antic d'Island que encara afirmava que aquesta API no era als apunts.
+La llista enllaçada i la pipe de finalització es poden continuar revisant per
+simplicitat del disseny, independentment que els seus mutex siguin correctes.
+
+**semaphore_v2: disponible com a llibreria del curs.** Les diapositives 7–8
+de `teoria/Tema3-Semafors-Sincronitzacio-CA-v1.pdf` mostren explícitament
+la inclusió de semaphore_v2.h i l'ús de SEM_constructor, SEM_init, SEM_wait,
+SEM_signal i SEM_destructor. Ara que també és a `lib/`, aquestes funcions
+estan proporcionades al projecte; això les diferencia dels auxiliars
+particulars com els separadors o macros d'impressió dels S5.
+
+**Disponibilitat no implica integració automàtica.** El Makefile ja inclou
+`-Ilib`, però cap font del projecte inclou actualment semaphore_v2.h. La
+capçalera conté definicions de funcions amb enllaç extern, no només prototips:
+si s'inclou en diversos .c del mateix executable pot donar errors de símbols
+duplicats; l'include guard només evita repeticions dins una mateixa unitat
+de compilació. Si algun dia s'utilitza, cal organitzar-ne la inclusió i
+comprovar els retorns, inicialitzar una sola vegada i destruir quan ja no
+quedin usuaris, tal com expliquen els apunts.
+
+No s'ha canviat la sincronització ni s'ha afegit cap include de semaphore_v2:
+amb el material nou, no hi ha motiu per fer aquesta substitució als bloquejos
+actuals entre fils.

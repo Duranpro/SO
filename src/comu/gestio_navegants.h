@@ -13,6 +13,7 @@
 #include <sys/select.h>
 #include <errno.h>
 
+/* REVISAR CLASSE: el registre amb nodes enllacats i punters estables es mes elaborat que els arrays de pthread_t de teoria/Threads/S2.c. Valorar un array de punters a entrades reservades, sense moure dades que els fils utilitzen. */
 typedef struct FilNavegant FilNavegant;
 
 typedef struct {

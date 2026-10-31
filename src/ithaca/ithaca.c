@@ -40,6 +40,7 @@ typedef struct {
  *
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
+    /* REVISAR CLASSE: preservar errno al handler i reintentar write forma part del disseny de finalitzacio amb pipe, mes elaborat que teoria/Signals/S1.c. No treure-ho independentment de la resta del tancament. */
     int error_anterior = errno;
     char avis = 'F';
 

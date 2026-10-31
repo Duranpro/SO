@@ -18,6 +18,7 @@
  * @Parametres: in: configuracio = mapa conegut; nom = illa cercada.
  * @Retorn: Retorna la posicio de l'illa o -1 si no es coneix.
  ************************************************/
+/* REVISAR CLASSE: strcasecmp no apareix als exemples aportats. Per cenyir-se estrictament al material, comparar caracters normalitzats amb un bucle; no usar strcmp directe perque cal ignorar majuscules. */
 int buscarIllaConeguda(ConfiguracioOdisseu *configuracio, char *nom) {
     int i = 0;
 
@@ -117,6 +118,7 @@ int mostrarStatus(ConfiguracioOdisseu *configuracio) {
     int i = 0, longitud = 0;
 
     for (i = 0; configuracio->nom[i] != '\0' && i < MIDA_NOM_ODYSSEUS - 1; i++) {
+        /* REVISAR CLASSE: toupper no s ha trobat als materials; teoria/Threads/S2.c mostra conversio ASCII amb rangs a-z/A-Z. Es pot aplicar aqui per als noms ASCII del projecte. */
         nom[i] = toupper((unsigned char)configuracio->nom[i]);
     }
     nom[i] = '\0';
@@ -224,6 +226,7 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
             configuracio->diners -= 50;
             break;
         }
+        /* REVISAR CLASSE: strstr no surt als exemples revisats; un bucle que detecti dos & seguits fa aquesta comprovacio. Aplicar el mateix criteri a les altres validacions equivalents. */
         if (dades[0] == '&' || dades[longitud - 1] == '&' || strstr(dades, "&&") != NULL) {
             enviarNack(*fd_illa, "INVALID_DATA");
             resultat = -1;
@@ -447,6 +450,7 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
                 }
             }
             for (i = 0; nom_illa[i] != '\0' && i < MIDA_DADES; i++) {
+                /* REVISAR CLASSE: es pot usar la mateixa conversio ASCII amb bucle que a mostrarStatus, com a teoria/Threads/S2.c. */
                 nom[i] = toupper((unsigned char)nom_illa[i]);
             }
             nom[i] = '\0';
@@ -1406,6 +1410,7 @@ int consumirProvisions(ConfiguracioOdisseu *configuracio, int quantitat) {
 int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                 int *finalitzar_programa) {
     fd_set descriptors;
+    /* REVISAR CLASSE: select i timeval si que surten a teoria/Tema4.Select.pdf; gettimeofday i el calcul de terminis en microsegons no s han trobat. Aquest es el principal bloc temporal a simplificar o justificar. */
     struct timeval temps, inici_racio, ara;
     Comanda comanda = {0};
     unsigned char trama[MIDA_TRAMA];
@@ -1457,6 +1462,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
         FD_ZERO(&descriptors);
         FD_SET(fd_espera, &descriptors);
         FD_SET(0, &descriptors);
+        /* REVISAR CLASSE: no reiniciar simplement un timeout de 5 segons despres de MAP/STATUS: cada ordre ajornaria el consum. Qualsevol alternativa mes senzilla ha de conservar el temps pendent. */
         temps_restant = 5000000L - temps_transcorregut;
         temps.tv_sec = temps_restant / 1000000L;
         temps.tv_usec = temps_restant % 1000000L;
@@ -1496,6 +1502,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                 trama[POSICIO_TIPUS] != TIPUS_ARRIBADA_ILLA ||
                 trama[POSICIO_FLAGS] != FLAG_RESPOSTA_OK ||
                 trama[POSICIO_LONGITUD] != 6 ||
+                /* REVISAR CLASSE: memcmp no s ha trobat als materials; alternativa amb funcions vistes: copiar 6 bytes a char resposta[7], afegir el terminador i comparar amb strcmp, nomes despres de validar longitud 6. */
                 memcmp(trama + POSICIO_DADES, "DOCKED", 6) != 0) {
                 if (resultat == 0 && trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK) {
                     if (trama[POSICIO_LONGITUD] != 6) {
@@ -1514,6 +1521,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
             free(missatge);
             return resultat;
         } else if (resultat > 0 && FD_ISSET(0, &descriptors)) {
+            /* REVISAR CLASSE: llegir fins a newline pot tornar a bloquejar despres de select si l entrada es parcial; mateix patro que teoria/Select/S5_trader.c. Considerar aquesta limitacio en revisar el temporitzador, sense afegir un parser asincron sense necessitat. */
             linia = llegirLinia(0);
             if (*finalitzar_programa != 0 || linia == NULL) {
                 free(linia);

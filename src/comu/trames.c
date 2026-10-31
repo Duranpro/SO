@@ -52,7 +52,7 @@ int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, u
  * @Retorn: Retorna 0 si escriu MIDA_TRAMA bytes i -1 altrament.
  *
  ************************************************/
-/* REVISAR: el bucle completa escriptures parcials TCP, pero l annex II demana un sol write de 256 bytes. Resoldre el criteri abans de canviar-lo. */
+/* REVISAR CLASSE: completar E/S parcial segueix el patro explicat a teoria/Tema4.Sockets.pdf (ultima pagina per read). No es complexitat aliena a classe; queda la diferencia amb el redactat d una sola operacio de l annex II. */
 int enviarTrama(int fd, unsigned char *trama) {
     int bytes_escrits = 0, total_escrit = 0;
 
@@ -75,7 +75,7 @@ int enviarTrama(int fd, unsigned char *trama) {
  *          i -1 si hi ha un error o la connexio es tanca amb la trama incompleta.
  *
  ************************************************/
-/* REVISAR: el bucle completa lectures parcials TCP, pero l annex II demana un sol read de 256 bytes. Un sol read no garanteix una trama completa. */
+/* REVISAR CLASSE: la darrera pagina de teoria/Tema4.Sockets.pdf ensenya explicitament a llegir els bytes pendents. Conservar el bucle per criteri de classe; l annex II te un redactat diferent. */
 int rebreTrama(int fd, unsigned char *trama) {
     int bytes_llegits = 0, total_llegit = 0;
 

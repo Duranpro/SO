@@ -47,7 +47,7 @@ char *llegirLinia(int fd) {
     char caracter = '\0';
     int longitud = 0, bytes_llegits = 0;
 
-    text = malloc(sizeof(*text)); // Revisar: inicialitzacio de text amb malloc(1) per reservar espai per al caràcter nul.
+    text = malloc(1); 
     if (text == NULL) {
         return NULL;
     }
@@ -55,7 +55,7 @@ char *llegirLinia(int fd) {
 
     while (1) {
         bytes_llegits = read(fd, &caracter, 1);
-        if (bytes_llegits <= 0) { // Revisar: Si la linia no acaba amb '\n', alliberem la memoria i retornem NULL per indicar que no s'ha pogut llegir una linia completa.
+        if (bytes_llegits <= 0) {
             free(text);
             return NULL;
         }
@@ -63,7 +63,7 @@ char *llegirLinia(int fd) {
             break;
         }
 
-        temporal = realloc(text, (longitud + 2) * sizeof(*temporal)); // Revisar: Es podria escriure com temporal = realloc(text, longitud + 2); ja que sizeof(*temporal) és 1
+        temporal = realloc(text, (longitud + 2));
         if (temporal == NULL) {
             free(text);
             return NULL;
@@ -89,18 +89,12 @@ char *llegirLinia(int fd) {
 int copiarText(char **desti, char *origen) {
     int longitud = 0, i = 0;
 
-    while (origen[longitud] != '\0') { // Revisar: strlen(origen) podria ser util per obtenir la longitud de la cadena origen, però el bucle actual també funciona correctament.
-        longitud++;
-    }
-
+    strlen(origen);
     *desti = malloc((longitud + 1) * sizeof(**desti));
     if (*desti == NULL) {
         return -1;
     }
-
-    for (i = 0; i <= longitud; i++) {
-        (*desti)[i] = origen[i]; // Revisar: Es podria utilitzar strcpy(*desti, origen) per copiar la cadena, però el bucle actual també funciona correctament.
-    }
+    strcpy(*desti, origen);
 
     return 0;
 }

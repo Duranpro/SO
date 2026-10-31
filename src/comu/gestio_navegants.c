@@ -72,7 +72,6 @@ void registrarNavegant(FilNavegant *navegant) {
  * @Retorn: ----.
  ************************************************/
 void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
-    /* REVISAR CLASSE: el punter al punter que desenllaca nodes es poc directe per al nivell dels Sx.c; un recorregut amb anterior i actual evita aquesta indireccio, mantenint nodes estables. */
     FilNavegant **posicio = NULL, *navegant = NULL;
 
     pthread_mutex_lock(&registre->mutex);
@@ -107,7 +106,6 @@ void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
  ************************************************/
 int esperarNavegant(int fd_servidor, int fd_finalitzacio) {
     fd_set descriptors;
-    /* REVISAR CLASSE: aquest timeout d un segon serveix per recollir fils acabats, no per rebre SIGINT (ja hi ha pipe). Valorar si cal aquesta revisio periodica; no es espera activa. */
     struct timeval temps = {1, 0};
     int resultat = 0;
     int maxim = fd_servidor;
@@ -123,7 +121,6 @@ int esperarNavegant(int fd_servidor, int fd_finalitzacio) {
     FD_SET(fd_finalitzacio, &descriptors);
     resultat = select(maxim + 1, &descriptors, NULL, NULL, &temps);
     if (resultat > 0 && FD_ISSET(fd_finalitzacio, &descriptors)) {
-        /* No consumim l'avis: tambe ha de despertar els fils navegants. */
         return 2;
     }
     if (resultat < 0 && errno == EINTR) {

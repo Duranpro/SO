@@ -40,7 +40,6 @@ typedef struct {
  *
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
-    /* Conservem l'error de l'operacio interrompuda pel senyal. */
     int error_anterior = errno;
     char avis = 'F';
 
@@ -119,7 +118,7 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
         resultat = crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
         free(dades);
         dades = NULL;
-        /* El text del viatge ha de cabre dins dels 253 bytes de dades. */
+
         if (resultat != 0) {
             crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,(unsigned char *)"Viatge massa llarg", 18);
             resultat = enviarTrama(fd_navegant, trama);
@@ -368,7 +367,7 @@ int main(int argc, char *argv[]) {
     }
     fd_avis_finalitzacio = navegants.finalitzacio[1];
     signal(SIGINT, gestionarSigint);
-    signal(SIGPIPE, SIG_IGN); // Una desconnexio no ha de finalitzar el servidor en escriure.
+    signal(SIGPIPE, SIG_IGN);
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);
     if (fd_servidor < 0) {
         recollirNavegants(&navegants, 1);

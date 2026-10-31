@@ -17,7 +17,6 @@ int iniciarNavegants(RegistreNavegants *registre) {
     if (pthread_mutex_init(&registre->mutex, NULL) != 0) {
         return -1;
     }
-    /* REVISAR CLASSE: pipe es coneguda, pero usar-la per avisar tots els fils amb select i EOF es un disseny nou respecte dels exemples. Cal explicar el flux complet abans de simplificar-lo. */
     if (pipe(registre->finalitzacio) != 0) {
         pthread_mutex_destroy(&registre->mutex);
         return -1;
@@ -79,7 +78,6 @@ void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
     pthread_mutex_lock(&registre->mutex);
     if (finalitzar) {
         /* L'EOF de la pipe desperta tots els selects sense llegir-ne dades. */
-        /* REVISAR CLASSE: l EOF queda visible per tots els selects perque cap fil el consumeix; aquesta notificacio col.lectiva no surt als exemples basics de Pipes. No substituir-la per un unic byte llegit per un sol fil. */
         close(registre->finalitzacio[1]);
     }
     posicio = &registre->primers;
@@ -87,7 +85,6 @@ void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
         navegant = *posicio;
         if (finalitzar || navegant->acabat) {
             *posicio = navegant->seguent;
-            /* REVISAR CLASSE: aquest unlock abans de join es necessari: el fil ha de poder agafar el mateix mutex per marcar acabat. No fer join mantenint el bloqueig. */
             pthread_mutex_unlock(&registre->mutex);
             pthread_join(navegant->fil, NULL);
             free(navegant);
@@ -115,8 +112,7 @@ int esperarNavegant(int fd_servidor, int fd_finalitzacio) {
     int resultat = 0;
     int maxim = fd_servidor;
 
-    if (fd_servidor < 0 || fd_servidor >= FD_SETSIZE ||
-        fd_finalitzacio < 0 || fd_finalitzacio >= FD_SETSIZE) {
+    if (fd_servidor < 0 || fd_servidor >= FD_SETSIZE || fd_finalitzacio < 0 || fd_finalitzacio >= FD_SETSIZE) {
         return -1;
     }
     if (fd_finalitzacio > maxim) {
@@ -130,8 +126,11 @@ int esperarNavegant(int fd_servidor, int fd_finalitzacio) {
         /* No consumim l'avis: tambe ha de despertar els fils navegants. */
         return 2;
     }
-    /* REVISAR CLASSE: errno/EINTR si que surt a teoria/Select/select.c. Per llegibilitat es pot expressar aquest ternari amb un if explicit; no eliminar el tractament d interrupcions. */
-    return resultat < 0 && errno == EINTR ? 0 : resultat;
+    if (resultat < 0 && errno == EINTR) {
+    return 0;
+    }
+
+    return resultat;
 }
 
 /***********************************************
@@ -141,7 +140,13 @@ int esperarNavegant(int fd_servidor, int fd_finalitzacio) {
  ************************************************/
 int esperarPeticioNavegant(int fd_navegant, int fd_finalitzacio) {
     fd_set descriptors;
-    int maxim = fd_navegant > fd_finalitzacio ? fd_navegant : fd_finalitzacio;
+    int maxim;
+
+    if (fd_navegant > fd_finalitzacio) {
+        maxim = fd_navegant;
+    } else {
+        maxim = fd_finalitzacio;
+    }
 
     if (fd_navegant < 0 || fd_finalitzacio < 0 || maxim >= FD_SETSIZE) {
         return -1;
@@ -162,7 +167,6 @@ int esperarPeticioNavegant(int fd_navegant, int fd_finalitzacio) {
  * @Retorn: Retorna 0 amb trama completa, 1 amb finalitzacio o EOF inicial
  *          i -1 amb error o EOF a mitja trama.
  ************************************************/
-/* REVISAR: mateix criteri que rebreTrama sobre lectures parcials i annex II; conservar la vigilancia de la pipe per poder finalitzar els fils. */
 int rebreTramaNavegant(int fd_navegant, int fd_finalitzacio, unsigned char *trama) {
     int total_llegit = 0, bytes_llegits = 0, resultat = 0;
 
@@ -177,8 +181,7 @@ int rebreTramaNavegant(int fd_navegant, int fd_finalitzacio, unsigned char *tram
             }
             return -1;
         }
-        bytes_llegits = read(fd_navegant, trama + total_llegit,
-                            MIDA_TRAMA - total_llegit);
+        bytes_llegits = read(fd_navegant, trama + total_llegit,MIDA_TRAMA - total_llegit);
         if (bytes_llegits < 0) {
             if (errno == EINTR) {
                 continue;

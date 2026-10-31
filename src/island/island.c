@@ -668,7 +668,6 @@ int main(int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN); 
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);
     if (fd_servidor < 0) {
-        signal(SIGINT, SIG_IGN); //REVISAR
         recollirNavegants(&navegants, 1);
         write(2, "Error: no s'ha pogut obrir el servidor d'Island.\n",strlen("Error: no s'ha pogut obrir el servidor d'Island.\n"));
         pthread_mutex_destroy(&mutex_port);

@@ -2,7 +2,7 @@
  * @Proposit: Conserva els fils, els desperta amb una pipe i els recull amb join.
  * @Autor/s: Antonio Duran Sabates i Arnau Gonzalez Hortelano
  * @Data creacio: 19/10/2026
- * @Data ultima modificacio: 19/10/2026
+ * @Data ultima modificacio: 01/11/2026
  ************************************************/
 #include "gestio_navegants.h"
 #include "trames.h"
@@ -13,7 +13,8 @@
  * @Retorn: Retorna 0 si es crea i -1 si falla algun recurs.
  ************************************************/
 int iniciarNavegants(RegistreNavegants *registre) {
-    registre->primers = NULL;
+    registre->entrades = NULL;
+    registre->nombre = 0;
     if (pthread_mutex_init(&registre->mutex, NULL) != 0) {
         return -1;
     }
@@ -36,19 +37,30 @@ void finalitzarNavegant(FilNavegant *navegant) {
 }
 
 /***********************************************
- * @Finalitat: Reserva les dades de control abans del pthread_create del servidor.
+ * @Finalitat: Reserva la fitxa i un lloc a l'array abans del pthread_create.
  * @Parametres: in: registre = propietari de les dades de control.
  * @Retorn: Retorna l'entrada reservada o NULL si falla la memoria.
  ************************************************/
 FilNavegant *reservarNavegant(RegistreNavegants *registre) {
     FilNavegant *navegant = malloc(sizeof(*navegant));
+    FilNavegant **temporal = NULL;
 
     if (navegant == NULL) {
         return NULL;
     }
+    /* Nomes el principal reserva i registra fils, una connexio cada vegada. */
+    pthread_mutex_lock(&registre->mutex);
+    temporal = realloc(registre->entrades, (registre->nombre + 1) * sizeof(*temporal));
+    if (temporal == NULL) {
+        pthread_mutex_unlock(&registre->mutex);
+        free(navegant);
+        return NULL;
+    }
+    registre->entrades = temporal;
+    registre->entrades[registre->nombre] = NULL;
+    pthread_mutex_unlock(&registre->mutex);
     navegant->acabat = 0;
     navegant->registre = registre;
-    navegant->seguent = NULL;
     return navegant;
 }
 
@@ -61,8 +73,8 @@ void registrarNavegant(FilNavegant *navegant) {
     RegistreNavegants *registre = navegant->registre;
 
     pthread_mutex_lock(&registre->mutex);
-    navegant->seguent = registre->primers;
-    registre->primers = navegant;
+    registre->entrades[registre->nombre] = navegant;
+    registre->nombre++;
     pthread_mutex_unlock(&registre->mutex);
 }
 
@@ -72,25 +84,34 @@ void registrarNavegant(FilNavegant *navegant) {
  * @Retorn: ----.
  ************************************************/
 void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
-    FilNavegant **posicio = NULL, *navegant = NULL;
+    FilNavegant *navegant = NULL;
+    int i = 0, j = 0;
 
     pthread_mutex_lock(&registre->mutex);
     if (finalitzar) {
         /* L'EOF de la pipe desperta tots els selects sense llegir-ne dades. */
         close(registre->finalitzacio[1]);
     }
-    posicio = &registre->primers;
-    while (*posicio != NULL) {
-        navegant = *posicio;
+    while (i < registre->nombre) {
+        navegant = registre->entrades[i];
         if (finalitzar || navegant->acabat) {
-            *posicio = navegant->seguent;
+            for (j = i; j < registre->nombre - 1; j++) {
+                registre->entrades[j] = registre->entrades[j + 1];
+            }
+            registre->nombre--;
+            registre->entrades[registre->nombre] = NULL;
+            /* El fil necessita aquest mutex per marcar-se com a acabat. */
             pthread_mutex_unlock(&registre->mutex);
             pthread_join(navegant->fil, NULL);
             free(navegant);
             pthread_mutex_lock(&registre->mutex);
         } else {
-            posicio = &navegant->seguent;
+            i++;
         }
+    }
+    if (registre->nombre == 0) {
+        free(registre->entrades);
+        registre->entrades = NULL;
     }
     pthread_mutex_unlock(&registre->mutex);
     if (finalitzar) {

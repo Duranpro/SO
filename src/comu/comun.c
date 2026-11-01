@@ -8,6 +8,7 @@
  ************************************************/
 
 #include "comun.h"
+#include <string.h>
 
 /***********************************************
  *
@@ -87,9 +88,7 @@ char *llegirLinia(int fd) {
  *
  ************************************************/
 int copiarText(char **desti, char *origen) {
-    int longitud = 0, i = 0;
-
-    strlen(origen);
+    int longitud = (int)strlen(origen);
     *desti = malloc((longitud + 1) * sizeof(**desti));
     if (*desti == NULL) {
         return -1;

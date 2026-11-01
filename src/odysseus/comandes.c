@@ -1473,7 +1473,6 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
             free(missatge);
             return resultat;
         } else if (resultat > 0 && FD_ISSET(0, &descriptors)) {
-            /* REVISAR CLASSE: llegir fins a newline pot tornar a bloquejar despres de select si l entrada es parcial; mateix patro que teoria/Select/S5_trader.c. Considerar aquesta limitacio en revisar el temporitzador, sense afegir un parser asincron sense necessitat. */
             linia = llegirLinia(0);
             if (*finalitzar_programa != 0 || linia == NULL) {
                 free(linia);

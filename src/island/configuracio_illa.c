@@ -58,18 +58,14 @@ int afegirRuta(char *linia, ConfiguracioIlla *configuracio) {
     configuracio->nombre_rutes++;
 
     camp = strtok(linia, " ");
-    /* REVISAR: el format de configuracio es pot assumir correcte; es pot treure camp == NULL, pero conservar el control de copiarText. Mateix criteri per IP i port seguents. */
-    if (camp == NULL || copiarText(&ruta->nom_illa, camp) != 0) {
+    if (copiarText(&ruta->nom_illa, camp) != 0) {
         return -1;
     }
     camp = strtok(NULL, " ");
-    if (camp == NULL || copiarText(&ruta->ip, camp) != 0) {
+    if (copiarText(&ruta->ip, camp) != 0) {
         return -1;
     }
     camp = strtok(NULL, " ");
-    if (camp == NULL) {
-        return -1;
-    }
     ruta->port = atoi(camp);
     return 0;
 }
@@ -100,20 +96,16 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
     if (linia == NULL) {
         resultat = -1;
     } else {
-        resultat = copiarText(&configuracio->nom, linia);
+        configuracio->nom = linia;
     }
-    free(linia);
-    linia = NULL;
 
     if (resultat == 0) {
         linia = llegirLinia(fd);
         if (linia == NULL) {
             resultat = -1;
         } else {
-            resultat = copiarText(&configuracio->ruta_carpeta, linia);
+            configuracio->ruta_carpeta = linia;
         }
-        free(linia);
-        linia = NULL;
     }
 
     if (resultat == 0) {
@@ -122,20 +114,14 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
             resultat = -1;
         } else {
             camp = strtok(linia, " ");
-            /* REVISAR: es poden simplificar els controls de tokens IP/port per la garantia de format; conservar els errors de llegirLinia i copiarText. */
-            if (camp == NULL || copiarText(&configuracio->ip, camp) != 0) {
+            if (copiarText(&configuracio->ip, camp) != 0) {
                 resultat = -1;
             } else {
                 camp = strtok(NULL, " ");
-                if (camp == NULL) {
-                    resultat = -1;
-                } else {
-                    configuracio->port = atoi(camp);
-                }
+                configuracio->port = atoi(camp);
             }
         }
         free(linia);
-        linia = NULL;
     }
 
     if (resultat == 0) {
@@ -146,13 +132,11 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
             resultat = -1;
         }
         free(linia);
-        linia = NULL;
     }
 
     if (resultat == 0) {
         linia = llegirLinia(fd);
-        /* REVISAR: comparar el marcador es prescindible amb format correcte; linia == NULL s ha de conservar per errors de lectura o memoria. */
-        if (linia == NULL || strcmp(linia, "--- ROUTES ---") != 0) {
+        if (linia == NULL) {
             resultat = -1;
         }
         free(linia);
@@ -197,10 +181,7 @@ void alliberarConfiguracioSphragis(SPHRAGIS_Island *illa, int nombre_rutes) {
 
     if (illa->known_islands != NULL) {
         for (i = 0; i < nombre_rutes; i++) {
-            /* REVISAR: free(NULL) es valid; aquest if interior sobra. Conservar el control exterior per no indexar un array NULL si falla malloc. */
-            if (illa->known_islands[i] != NULL) {
-                free(illa->known_islands[i]);
-            }
+            free(illa->known_islands[i]);
         }
     }
     free(illa->known_islands);
@@ -223,10 +204,9 @@ void conservarRutesValides(ConfiguracioIlla *configuracio, SPHRAGIS_Island *illa
     for (i = 0; i < nombre_original; i++) {
         ruta_valida = 0;
         for (j = 0; j < illa_sphragis->known_island_count; j++) {
-            /* REVISAR: SPHRAGIS compacta els supervivents; dins del recompte retornat correctament no hi ha NULL i aquest control es redundant. */
-            if (illa_sphragis->known_islands[j] != NULL &&
-                strcmp(configuracio->rutes[i].nom_illa, illa_sphragis->known_islands[j]) == 0) {
+            if (strcmp(configuracio->rutes[i].nom_illa, illa_sphragis->known_islands[j]) == 0) {
                 ruta_valida = 1;
+                break;
             }
         }
         if (ruta_valida == 1) {
@@ -253,7 +233,6 @@ int validarRutes(ConfiguracioIlla *configuracio) {
     SPHRAGIS_Island illa_sphragis = {0};
     int nombre_original = configuracio->nombre_rutes, resultat = 0;
     int i = 0, caracters_escrits = 0;
-    char *missatge = NULL;
 
     illa_sphragis.name = configuracio->nom;
     illa_sphragis.known_island_count = nombre_original;
@@ -276,11 +255,9 @@ int validarRutes(ConfiguracioIlla *configuracio) {
     if (resultat >= 0) {
         conservarRutesValides(configuracio, &illa_sphragis);
     } else {
-        /* REVISAR: missatge fix; es pot escriure directament sense asprintf ni free, gestionant el resultat de write. */
-        caracters_escrits = asprintf(&missatge, "Error: SPHRAGIS no ha pogut validar les rutes.\n");
-        if (caracters_escrits >= 0) {
-            write(2, missatge, caracters_escrits);
-            free(missatge);
+        caracters_escrits = strlen("Error: SPHRAGIS no ha pogut validar les rutes.\n");
+        if (write(2, "Error: SPHRAGIS no ha pogut validar les rutes.\n", caracters_escrits) != caracters_escrits) {
+            resultat = -1;
         }
     }
 

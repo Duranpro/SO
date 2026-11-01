@@ -14,9 +14,10 @@
 /***********************************************
  *
  * @Finalitat: Carrega la identitat i les localitzacions d'Odysseus.
- * @Parametres: in: fd = descriptor del fitxer de configuracio.
+ * @Parametres: in: fd = descriptor del fitxer amb format de configuracio correcte.
  *              out: configuracio = dades que es carreguen.
- * @Retorn: Retorna 0 si es carreguen les dades i -1 si falta algun camp.
+ * @Retorn: Retorna 0 si es carreguen les dades i -1 si falla la lectura,
+ *          la reserva de memoria o una dada no cap al buffer de destinacio.
  *
  ************************************************/
 int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
@@ -38,21 +39,16 @@ int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
         return -1;
     }
     camp = strtok(linia, " ");
-    /* REVISAR: amb format de configuracio garantit, els controls de camp absent del nom, IP i port es poden treure. Conservar errors de llegirLinia i copiarText. */
-    if (camp == NULL || copiarText(&configuracio->nom, camp) != 0) {
+    if (copiarText(&configuracio->nom, camp) != 0) {
         free(linia);
         return -1;
     }
     camp = strtok(NULL, " ");
-    if (camp == NULL || copiarText(&configuracio->ip_itaca, camp) != 0) {
+    if (copiarText(&configuracio->ip_itaca, camp) != 0) {
         free(linia);
         return -1;
     }
     camp = strtok(NULL, " ");
-    if (camp == NULL) {
-        free(linia);
-        return -1;
-    }
     configuracio->port_itaca = atoi(camp);
     free(linia);
     linia = NULL;
@@ -62,16 +58,11 @@ int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
         return -1;
     }
     camp = strtok(linia, " ");
-    /* REVISAR: mateix criteri per IP i port inicials: simplificar tokens absents, conservant la gestio d errors de lectura i reserva. */
-    if (camp == NULL || copiarText(&configuracio->ip_illa_inicial, camp) != 0) {
+    if (copiarText(&configuracio->ip_illa_inicial, camp) != 0) {
         free(linia);
         return -1;
     }
     camp = strtok(NULL, " ");
-    if (camp == NULL) {
-        free(linia);
-        return -1;
-    }
     configuracio->port_illa_inicial = atoi(camp);
     free(linia);
 
@@ -90,7 +81,7 @@ int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
 /***********************************************
  *
  * @Finalitat: Carrega els diners i els aliments inicials d'Odysseus.
- * @Parametres: in: fd = descriptor del fitxer de configuracio.
+ * @Parametres: in: fd = descriptor del fitxer amb format i dades correctes.
  *              out: configuracio = dades que es carreguen.
  * @Retorn: Retorna 0 si es carreguen les dades i -1 si es produeix un error.
  *
@@ -114,9 +105,6 @@ int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
     configuracio->nombre_aliments = atoi(linia);
     free(linia);
     linia = NULL;
-    if (configuracio->nombre_aliments < 0) { // Revisar: assumint dades correctes segons enunciat, és una comprovació addicional.
-        return -1;
-    }
     if (configuracio->nombre_aliments == 0) {
         return 0;
     }
@@ -137,16 +125,11 @@ int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
             return -1;
         }
         camp = strtok(linia, " ");
-        /* REVISAR: el format garantit permet treure camp == NULL i el control del token quantitat seguent; conservar el retorn de copiarText. */
-        if (camp == NULL || copiarText(&configuracio->aliments[i].nom, camp) != 0) {
+        if (copiarText(&configuracio->aliments[i].nom, camp) != 0) {
             free(linia);
             return -1;
         }
         camp = strtok(NULL, " ");
-        if (camp == NULL) {
-            free(linia);
-            return -1;
-        }
         configuracio->aliments[i].quantitat = atoi(camp);
         free(linia);
         linia = NULL;

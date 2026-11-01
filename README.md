@@ -16,13 +16,13 @@ config/
 data/
   voyages.dat
   stocks/       Stocks binaris de les illes
-build/          Objectes i dependencies generats per make
+build/          Objectes generats per make
 entregues/      Entrega original i copia corregida de la Fase 1
 teoria/         Apunts i exemples de l'assignatura
 ```
 
 Les capcaleres `.h` estan al costat del modul `.c` corresponent. El Makefile
-configura els directoris d'inclusio i genera les dependencies automaticament.
+configura els directoris d'inclusio i indica les dependencies de cada objecte explicitament.
 Els executables es generen a l'arrel del projecte.
 
 ## Compilar

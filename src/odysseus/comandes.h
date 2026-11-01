@@ -46,7 +46,8 @@ typedef struct {
     int valor;
 } Comanda;
 
-int escriureMissatge(char *text);
+int escriureMissatge(const char *text);
+int teSeparadorsSeguits(char *text);
 int mostrarUsComanda(int tipus);
 int analitzarConnexio(char *paraules[], int nombre_paraules,Comanda *comanda);
 int analitzarLlista(char *paraules[], int nombre_paraules, Comanda *comanda);

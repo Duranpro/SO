@@ -45,6 +45,22 @@ make clean
 
 Executa sempre les comandes des de l'arrel del projecte. En terminals separats:
 
+La configuracio actual distribueix els processos entre Matagalls
+(`172.16.214.20`) i Montserrat (`172.16.214.21`).
+
+| Proces | Maquina | Port |
+|---|---|---|
+| Ithaca | Matagalls | 8195 |
+| Aeaea | Montserrat | 8196 |
+| Aeolia | Matagalls | 8197 |
+| Ismarus | Montserrat | 8198 |
+| Scheria | Matagalls | 8199 |
+| Ogygia | Matagalls | 8130 |
+| Thrinacia | Montserrat | 8131 |
+
+Odysseus pot executar-se en qualsevol de les dues maquines. Cal copiar
+la carpeta `config/` actualitzada als dos servidors abans de provar.
+
 ```bash
 ./ithaca config/ithaca.dat data/voyages.dat
 ./island config/illes/aeaea.dat data/stocks/Aeaea.db
@@ -67,6 +83,10 @@ Les IP, els ports i el contingut dels `.dat` es conserven. Cada servidor s'ha
 d'executar a la maquina que te la IP indicada al seu fitxer de configuracio.
 Les rutes de carpetes dins dels `.dat`, com `./aeaea_files`, es resolen des del
 directori on s'executa el programa, no des de `config/`.
+
+Els passos de les proves manuals son a `PRUEBAS_MANUALES.md`.
+`config/illes/aeaea_fifo.dat` conserva les mateixes dades d'Aeaea amb capacitat
+1 per provar la cua. S'executa en lloc d'Aeaea normal, amb el mateix port.
 
 ## Valgrind
 

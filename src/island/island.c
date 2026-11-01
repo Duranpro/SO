@@ -342,7 +342,7 @@ int notificarEntradaPort(VaixellPort *vaixell) {
 int confirmarEspera(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex_port) {
     int i = 0, promogut = 0;
 
-    /* La promocio no pot enviar DOCKED abans que aquest fil acabi d'enviar WAIT. */
+    // La promocio no pot enviar DOCKED abans que aquest fil acabi d'enviar WAIT
     pthread_mutex_lock(mutex_port);
     for (i = 0; i < port->num_fifo; i++) {
         if (port->fifo[i].fd_navegant == fd_navegant) {

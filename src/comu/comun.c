@@ -44,6 +44,7 @@ int esNumero(char *text) {
  *
  ************************************************/
 char *llegirLinia(int fd) {
+    //Revisar: diferenciar quan s'acaba el fitxer de quan alguna cosa falla en llegir-lo.
     char *text = NULL, *temporal = NULL;
     char caracter = '\0';
     int longitud = 0, bytes_llegits = 0;

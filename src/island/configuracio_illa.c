@@ -144,7 +144,6 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
     }
     if (resultat == 0) {
         linia = llegirLinia(fd);
-        /* REVISAR: NULL tambe significa error de lectura/reserva a llegirLinia; aquest bucle pot acceptar una configuracio parcial com si fos EOF correcte. */
         while (linia != NULL && resultat == 0) {
             resultat = afegirRuta(linia, configuracio);
             free(linia);

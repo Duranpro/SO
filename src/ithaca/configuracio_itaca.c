@@ -37,20 +37,16 @@ int carregarConfiguracioItaca(char *nom_fitxer, ConfiguracioItaca *configuracio)
     if (linia == NULL) {
         resultat = -1;
     } else {
-        resultat = copiarText(&configuracio->nom, linia);
+        configuracio->nom = linia;
     }
-    free(linia);
-    linia = NULL;
 
     if (resultat == 0) {
         linia = llegirLinia(fd);
         if (linia == NULL) {
             resultat = -1;
         } else {
-            resultat = copiarText(&configuracio->ruta_carpeta, linia);
+            configuracio->ruta_carpeta = linia;
         }
-        free(linia);
-        linia = NULL;
     }
 
     if (resultat == 0) {
@@ -59,20 +55,14 @@ int carregarConfiguracioItaca(char *nom_fitxer, ConfiguracioItaca *configuracio)
             resultat = -1;
         } else {
             camp = strtok(linia, " ");
-            /* REVISAR: el format de configuracio es pot assumir correcte; camp == NULL i el control del token port son prescindibles. Conservar errors de lectura i copiarText. */
-            if (camp == NULL || copiarText(&configuracio->ip, camp) != 0) {
+            if (copiarText(&configuracio->ip, camp) != 0) {
                 resultat = -1;
             } else {
                 camp = strtok(NULL, " ");
-                if (camp == NULL) {
-                    resultat = -1;
-                } else {
-                    configuracio->port = atoi(camp);
-                }
+                configuracio->port = atoi(camp);
             }
         }
         free(linia);
-        linia = NULL;
     }
     close(fd);
 
@@ -117,22 +107,18 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     configuracio->nombre_viatges++;
 
     camp = strtok(linia, " ");
-    /* REVISAR: els controls de camps de voyages.dat nomes es poden treure si tambe assumim correcte aquest fitxer proporcionat; conservar errors de copiarText. */
-    if (camp == NULL || copiarText(&viatge->nom_objecte, camp) != 0) {
+    if (copiarText(&viatge->nom_objecte, camp) != 0) {
         return -1;
     }
     camp = strtok(NULL, " ");
-    if (camp == NULL || copiarText(&viatge->ruta_fitxer, camp) != 0) {
+    if (copiarText(&viatge->ruta_fitxer, camp) != 0) {
         return -1;
     }
     camp = strtok(NULL, " ");
-    if (camp == NULL || copiarText(&viatge->illa_desti, camp) != 0) {
+    if (copiarText(&viatge->illa_desti, camp) != 0) {
         return -1;
     }
     camp = strtok(NULL, " ");
-    if (camp == NULL) {
-        return -1;
-    }
     viatge->recompensa = atoi(camp);
 
     return 0;
@@ -155,7 +141,6 @@ int carregarViatges(char *nom_fitxer, ConfiguracioItaca *configuracio) {
         resultat = -1;
     } else {
         linia = llegirLinia(fd);
-        /* REVISAR: llegirLinia retorna NULL tant per EOF com per error; aquest bucle pot acceptar viatges carregats parcialment sense informar de la fallada. */
         while (linia != NULL && resultat == 0) {
             resultat = afegirViatge(linia, configuracio);
             free(linia);

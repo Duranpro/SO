@@ -33,8 +33,6 @@ typedef struct {
 } VaixellPort;
 
 typedef struct {
-    /* REVISAR CLASSE: places_ocupades i num_atracats es modifiquen junts i representen la mateixa quantitat; es pot usar nomes num_atracats per reduir estat duplicat. */
-    int places_ocupades;
     VaixellPort *atracats;
     int num_atracats;
     VaixellPort *fifo;
@@ -71,37 +69,11 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
     if ((int)strlen(dades) != peticio[POSICIO_LONGITUD] || esNumero(dades) == 0) {
         return enviarNack(fd_navegant, "INVALID_DATA");
     }
-    error = malloc((MIDA_DADES + 1) * sizeof(*error)); //REVISAR: potser no caldria reservar memoria per error
-    if (error == NULL) {
-        return -1;
-    }
-    error[0] = '\0';
-    if (peticio[POSICIO_FLAGS] != FLAG_PETICIO || peticio[POSICIO_LONGITUD] != 1 ||peticio[POSICIO_DADES] != '1') {
-        strcpy(error, "Quantitat de mapa invalida");
-    }
-    /* REVISAR: eliminar aquest primer bucle: amb noms d'illa admesos per SPHRAGIS,
-     * IPv4 i port valids, la resposta ocupa com a maxim 59 bytes, comptant fins
-     * a 10 digits per a index i total; cap dins dels 253 bytes de dades.
-     * Conservar al segon bucle els controls d'error d'asprintf i crearTrama,
-     * i conservar el limit de longitud de crearTrama per als altres missatges. */
-    for (i = 0; i < total && error[0] == '\0'; i++) {
-        longitud = asprintf(&ruta, "OK&50&%d&%d&%s&%s&%d", i + 1, total,configuracio->rutes[i].nom_illa, configuracio->rutes[i].ip, configuracio->rutes[i].port);
-        if (longitud < 0) {
-            free(error);
-            return -1;
-        }
-        free(ruta);
-        ruta = NULL;
-        if (longitud > MIDA_DADES) {
-            strcpy(error, "Ruta massa llarga");
-        }
-    }
-    if (error[0] != '\0') {
+    if (peticio[POSICIO_FLAGS] != FLAG_PETICIO || peticio[POSICIO_LONGITUD] != 1 || peticio[POSICIO_DADES] != '1') {
+        error = "Quantitat de mapa invalida";
         crearTrama(trama, TIPUS_BUY_MAP, FLAG_RESPOSTA_ERROR, (unsigned char *)error, strlen(error));
-        free(error);
         return enviarTrama(fd_navegant, trama);
     }
-    free(error);
     if (total == 0) {
         crearTrama(trama, TIPUS_BUY_MAP, FLAG_RESPOSTA_OK, (unsigned char *)"OK&50&0", 7);
         resultat = enviarTrama(fd_navegant, trama);
@@ -169,7 +141,6 @@ int gestionarListMarket(int fd_navegant, unsigned char *peticio,ConfiguracioIlla
         }
         resultat = crearTrama(trama, TIPUS_LIST_MARKET, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
         free(dades);
-        dades = NULL; //REVISAR: potser no caldria posar a NULL dades
         if (resultat == 0) {
             resultat = enviarTrama(fd_navegant, trama);
         }
@@ -195,11 +166,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
     if (longitud == 0 || longitud > MIDA_DADES) {
         return enviarNack(fd_navegant, "INVALID_LENGTH");
     }
-    error = malloc((MIDA_DADES + 1) * sizeof(*error)); //REVISAR: potser no caldria reservar memoria per error
-    if (error == NULL) {
-        return -1;
-    }
-    strcpy(error, "Peticio invalida");
+    error = "Peticio invalida";
     if (peticio[POSICIO_FLAGS] == FLAG_PETICIO && longitud > 0 && longitud <= MIDA_DADES) {
         memcpy(dades, peticio + POSICIO_DADES, longitud);
         dades[longitud] = '\0';
@@ -220,7 +187,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
             }
             if (valida == 1 && quantitat > 0 && dades[0] != '\0' &&
                 strlen(dades) < MIDA_NOM_PRODUCTE && strcasecmp(dades, "MAP") != 0) {
-                strcpy(error, "Producte desconegut");
+                error = "Producte desconegut";
                 pthread_mutex_lock(mutex_stock);
                 for (i = 0; i < configuracio->nombre_productes; i++) {
                     if (strcmp(configuracio->productes[i].nom, dades) == 0) {
@@ -228,25 +195,25 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
                     }
                 }
                 if (index >= 0) {
-                    strcpy(error, "Quantitat fora de rang");
+                    error = "Quantitat fora de rang";
                     if (configuracio->productes[index].preu >= 0 &&
                         (configuracio->productes[index].preu == 0 || quantitat <= INT_MAX / configuracio->productes[index].preu)) {
                         import = quantitat * configuracio->productes[index].preu;
                         nova_quantitat = configuracio->productes[index].quantitat;
                         if (tipus == TIPUS_BUY && nova_quantitat >= quantitat) {
                             nova_quantitat -= quantitat;
-                            error[0] = '\0';
+                            error = NULL;
                         } else if (tipus == TIPUS_BUY) {
-                            strcpy(error, "Stock insuficient");
+                            error = "Stock insuficient";
                         } else if (nova_quantitat <= INT_MAX - quantitat) {
                             nova_quantitat += quantitat;
-                            error[0] = '\0';
+                            error = NULL;
                         }
-                        if (error[0] == '\0') {
+                        if (error == NULL) {
                             if (actualitzarQuantitatStock(ruta_stock, index, nova_quantitat) == 0) {
                                 configuracio->productes[index].quantitat = nova_quantitat;
                             } else {
-                                strcpy(error, "Error escrivint stock");
+                                error = "Error escrivint stock";
                             }
                         }
                     }
@@ -256,10 +223,9 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
         }
     }
     if (format_valid == 0) {
-        free(error);
         return enviarNack(fd_navegant, "INVALID_DATA");
     }
-    if (error[0] != '\0') {
+    if (error != NULL) {
         crearTrama(trama, tipus, FLAG_RESPOSTA_ERROR, (unsigned char *)error, strlen(error));
     } else {
         if (tipus == TIPUS_SELL) {
@@ -273,17 +239,15 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
         missatge = NULL;
         longitud = asprintf(&resposta, "OK&%s&%d&%d", configuracio->productes[index].nom, quantitat, import);
         if (longitud < 0) {
-            free(error);
             return -1;
         }
         valida = crearTrama(trama, tipus, FLAG_RESPOSTA_OK, (unsigned char *)resposta, longitud);
         free(resposta);
         if (valida != 0) {
-            free(error);
             return -1;
         }
     }
-    free(error);
+
     return enviarTrama(fd_navegant, trama);
 }
 
@@ -295,7 +259,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
  *
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
-    /* REVISAR CLASSE: mateix disseny de pipe de finalitzacio que Ithaca; guardar errno i reintentar s ha de valorar conjuntament amb el despertar dels fils. */
+    /* Conservem l'error de l'operacio interrompuda pel senyal. */
     int error_anterior = errno;
     char avis = 'F';
 
@@ -320,13 +284,12 @@ int registrarArribada(EstatPort *port, int capacitat, VaixellPort *vaixell, pthr
     int resultat = -1;
 
     pthread_mutex_lock(mutex_port);
-    if (port->places_ocupades < capacitat && port->num_fifo == 0) {
+    if (port->num_atracats < capacitat && port->num_fifo == 0) {
         temporal = realloc(port->atracats, (port->num_atracats + 1) * sizeof(*temporal));
         if (temporal != NULL) {
             port->atracats = temporal;
             port->atracats[port->num_atracats] = *vaixell;
             port->num_atracats++;
-            port->places_ocupades++;
             resultat = 1;
         }
     } else {
@@ -363,7 +326,6 @@ int notificarEntradaPort(VaixellPort *vaixell) {
         write(1, missatge, longitud);
         free(missatge);
     }
-    missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
     return 0;
 }
 
@@ -376,7 +338,7 @@ int notificarEntradaPort(VaixellPort *vaixell) {
  * @Retorn: Retorna 1 si aquest fil ha d'enviar DOCKED i 0 altrament.
  *
  ************************************************/
-/* REVISAR CLASSE: espera_notificada evita que un altre fil envi.i DOCKED abans de WAIT. Es logica propia necessaria pel disseny concurrent, no una funcio de llibreria estranya; no treure-la sense garantir aquest ordre. */
+/* Garantim que WAIT s'envia abans de DOCKED. */
 int confirmarEspera(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex_port) {
     int i = 0, promogut = 0;
 
@@ -427,13 +389,11 @@ void alliberarPlacaPort(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex
                 port->atracats[j] = port->atracats[j + 1];
             }
             port->num_atracats--;
-            port->places_ocupades--;
             if (port->num_fifo > 0) {
                 promogut = port->fifo[0];
                 /* Reutilitzem la posicio alliberada a l'array d'atracats. */
                 port->atracats[port->num_atracats] = promogut;
                 port->num_atracats++;
-                port->places_ocupades++;
                 for (j = 0; j < port->num_fifo - 1; j++) {
                     port->fifo[j] = port->fifo[j + 1];
                 }
@@ -443,7 +403,7 @@ void alliberarPlacaPort(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex
         }
     }
     pthread_mutex_unlock(mutex_port);
-    /* REVISAR CLASSE: aqui un fil envia pel socket ates per un altre. Si es simplifica, valorar que cada fil envi.i les seves respostes, pero cal un avis que el desperti; no afegir nous mecanismes nomes per substituir aquest control. */
+    /* Avisem el primer de la cua nomes si ja s'ha enviat WAIT. */
     if (promogut.fd_navegant >= 0 && promogut.espera_notificada == 1) {
         if (notificarEntradaPort(&promogut) != 0) {
             write(2, "Error: no s'ha pogut enviar DOCKED.\n",strlen("Error: no s'ha pogut enviar DOCKED.\n"));
@@ -507,44 +467,37 @@ void *atendreOdysseusIsland(void *arg) {
         finalitzarNavegant(control);
         return NULL;
     }
-    resposta = malloc(sizeof("Sense memoria")); //REVISAR Suposem que la resposta mai pot ser mes llarga que "Sense memoria" i potser lo correcte seria reservar pel missatge de resposta i no per la frase literal.
-    if (resposta == NULL) {
-        close(fd_navegant);
-        finalitzarNavegant(control);
-        return NULL;
-    }
     longitud = asprintf(&missatge, ">>> %s approaching %s.\n",vaixell.nom, configuracio->nom);
     if (longitud >= 0) {
         write(1, missatge, longitud);
         free(missatge);
     }
-    missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
+    missatge = NULL;
     resultat_port = registrarArribada(port, configuracio->capacitat_port, &vaixell, mutex_port);
     if (resultat_port == 1) {
-        strcpy(resposta, "DOCKED");
+        resposta = "DOCKED";
         longitud = asprintf(&missatge, ">>> %s entered the port.\n", vaixell.nom);
         if (longitud < 0) {
-            missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
+            missatge = NULL;
         }
     } else if (resultat_port == 2) {
-        strcpy(resposta, "WAIT");
+        resposta = "WAIT";
         longitud = asprintf(&missatge, ">>> Port full. %s waiting offshore in the FIFO queue.\n", vaixell.nom);
         if (longitud < 0) {
-            missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
+            missatge = NULL;
         }
     } else {
-        strcpy(resposta, "Sense memoria");
+        resposta = "Sense memoria";
         flags = FLAG_RESPOSTA_ERROR;
     }
     crearTrama(trama, TIPUS_ARRIBADA_ILLA, flags, (unsigned char *)resposta, strlen(resposta));
-    free(resposta);
     resultat = enviarTrama(fd_navegant, trama);
     if (resultat == 0 && resultat_port > 0) {
         if (longitud >= 0) {
             write(1, missatge, longitud);
         }
         free(missatge);
-        missatge = NULL; //REVISAR: potser no caldria posar a NULL el missatge
+        missatge = NULL;
         if (resultat_port == 2 && confirmarEspera(port, fd_navegant, mutex_port) == 1) {
             resultat = notificarEntradaPort(&vaixell);
         }
@@ -738,7 +691,6 @@ int main(int argc, char *argv[]) {
         free(missatge);
     }
 
-    signal(SIGINT, SIG_IGN); //REVISAR realment fa falta?
     recollirNavegants(&navegants, 1);
     free(port.atracats);
     free(port.fifo);

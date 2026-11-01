@@ -17,20 +17,17 @@
 /***********************************************
  *
  * @Finalitat: Construeix una trama serialitzada amb padding a zero.
- * @Parametres: out: trama = buffer de MIDA_TRAMA bytes.
+ * @Parametres: out: trama = buffer valid de MIDA_TRAMA bytes.
  *              in: tipus = tipus de la trama.
  *              in: flags = valor del camp FLAGS.
- *              in: dades = bytes que es volen copiar.
+ *              in: dades = buffer valid de longitud bytes si longitud > 0;
+ *                          pot ser NULL si longitud es 0.
  *              in: longitud = nombre de bytes utils de dades.
- * @Retorn: Retorna 0 si es crea la trama i -1 si els parametres no son valids.
+ * @Retorn: Retorna 0 si es crea la trama i -1 si la longitud no es valida.
  *
  ************************************************/
 int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, unsigned char *dades, int longitud) {
-    /* REVISAR: trama i dades positives ja son valides als cridadors actuals; els controls NULL es poden simplificar amb aquest contracte. Conservar els limits de longitud. */
-    if (trama == NULL || longitud < 0 || longitud > MIDA_DADES) {
-        return -1;
-    }
-    if (longitud > 0 && dades == NULL) {
+    if (longitud < 0 || longitud > MIDA_DADES) {
         return -1;
     }
 
@@ -52,7 +49,6 @@ int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, u
  * @Retorn: Retorna 0 si escriu MIDA_TRAMA bytes i -1 altrament.
  *
  ************************************************/
-/* REVISAR CLASSE: completar E/S parcial segueix el patro explicat a teoria/Tema4.Sockets.pdf (ultima pagina per read). No es complexitat aliena a classe; queda la diferencia amb el redactat d una sola operacio de l annex II. */
 int enviarTrama(int fd, unsigned char *trama) {
     int bytes_escrits = 0, total_escrit = 0;
 
@@ -75,7 +71,6 @@ int enviarTrama(int fd, unsigned char *trama) {
  *          i -1 si hi ha un error o la connexio es tanca amb la trama incompleta.
  *
  ************************************************/
-/* REVISAR CLASSE: la darrera pagina de teoria/Tema4.Sockets.pdf ensenya explicitament a llegir els bytes pendents. Conservar el bucle per criteri de classe; l annex II te un redactat diferent. */
 int rebreTrama(int fd, unsigned char *trama) {
     int bytes_llegits = 0, total_llegit = 0;
 

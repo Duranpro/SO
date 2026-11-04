@@ -3,7 +3,7 @@
  * @Proposit: Declara les operacions basiques de les trames Nostos.
  * @Autor/s: Antonio Duran Sabates i Arnau Gonzalez Hortelano
  * @Data creacio: 15/10/2026
- * @Data ultima modificacio: 15/10/2026
+ * @Data ultima modificacio: 04/11/2026
  *
  ************************************************/
 
@@ -28,10 +28,16 @@
 #define TIPUS_SELL 0x13
 #define TIPUS_BUY_MAP 0x14
 #define TIPUS_SORTIDA_ILLA 0x16
+#define TIPUS_CAPCALERA_FITXER 0x20
+#define TIPUS_DADES_FITXER 0x21
+#define TIPUS_READY_FITXER 0x22
+#define TIPUS_ACK_FITXER 0x23
 #define TIPUS_NACK 0x7F
 #define FLAG_PETICIO 0x00
 #define FLAG_RESPOSTA_OK 0x80
 #define FLAG_RESPOSTA_ERROR 0xC0
+#define FLAG_DADES_PETICIO 0x20
+#define FLAG_DADES_RESPOSTA 0xA0
 
 
 int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, unsigned char *dades, int longitud);

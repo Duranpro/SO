@@ -151,3 +151,341 @@ int calcularMd5(char *ruta_fitxer, char *md5) {
     md5[32] = '\0';
     return 0;
 }
+
+/***********************************************
+ * @Finalitat: Obte la mida en bytes d'un fitxer que cap en un int.
+ * @Parametres: in: ruta_fitxer = ruta del fitxer que es consulta.
+ * @Retorn: Mida del fitxer, o -1 si no es pot obrir o posicionar.
+ ************************************************/
+int obtenirMidaFitxer(char *ruta_fitxer) {
+    int fd_fitxer = -1, mida_fitxer = 0;
+
+    if (ruta_fitxer == NULL || ruta_fitxer[0] == '\0') {
+        return -1;
+    }
+    fd_fitxer = open(ruta_fitxer, O_RDONLY);
+    if (fd_fitxer < 0) {
+        return -1;
+    }
+    mida_fitxer = lseek(fd_fitxer, 0, SEEK_END);
+    close(fd_fitxer);
+    return mida_fitxer;
+}
+
+/***********************************************
+ * @Finalitat: Envia una resposta textual READY o ACK de la transferencia.
+ * @Parametres: in: fd_socket = connexio; tipus, flags = camps de la trama.
+ *              in: text = resposta del protocol, sense dades binaries.
+ * @Retorn: 0 si s'envia correctament i -1 si falla.
+ ************************************************/
+static int respondreFitxer(int fd_socket, unsigned char tipus,
+                           unsigned char flags, char *text) {
+    unsigned char trama[MIDA_TRAMA];
+
+    if (crearTrama(trama, tipus, flags, (unsigned char *)text, strlen(text)) != 0) {
+        return -1;
+    }
+    return enviarTrama(fd_socket, trama);
+}
+
+/***********************************************
+ * @Finalitat: Espera el READY o l'ACK abans de continuar la transferencia.
+ * @Parametres: in: fd_socket = connexio; tipus = TYPE esperat.
+ *              in: text = contingut correcte de la resposta.
+ * @Retorn: 0 amb resposta OK valida i -1 amb error o trama incorrecta.
+ ************************************************/
+static int esperarRespostaFitxer(int fd_socket, unsigned char tipus, char *text) {
+    unsigned char trama[MIDA_TRAMA];
+    char resposta[MIDA_DADES + 1];
+    int longitud = 0;
+
+    if (rebreTrama(fd_socket, trama) != 0) {
+        return -1;
+    }
+    if (trama[POSICIO_TIPUS] != tipus) {
+        if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
+            enviarNack(fd_socket, "INVALID_TYPE");
+        }
+        return -1;
+    }
+    if (trama[POSICIO_FLAGS] != FLAG_RESPOSTA_OK &&
+        trama[POSICIO_FLAGS] != FLAG_RESPOSTA_ERROR) {
+        enviarNack(fd_socket, "INVALID_FLAGS");
+        return -1;
+    }
+    longitud = trama[POSICIO_LONGITUD];
+    if (longitud < 1 || longitud > MIDA_DADES) {
+        enviarNack(fd_socket, "INVALID_LENGTH");
+        return -1;
+    }
+    memcpy(resposta, trama + POSICIO_DADES, longitud);
+    resposta[longitud] = '\0';
+    if ((int)strlen(resposta) != longitud) {
+        enviarNack(fd_socket, "INVALID_DATA");
+        return -1;
+    }
+    if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR) {
+        return -1;
+    }
+    if (strcmp(resposta, text) != 0) {
+        enviarNack(fd_socket, "INVALID_DATA");
+        return -1;
+    }
+    return 0;
+}
+
+/***********************************************
+ * @Finalitat: Envia un fitxer seguint HEADER, READY, DATA i ACK final.
+ * @Parametres: in: fd_socket = connexio que el cridador conserva i tanca.
+ *              in: ruta_fitxer = origen; tipus_transferencia = nom del protocol.
+ *              in: flags_capcalera, flags_dades = valors definits a l'Annex II.
+ * @Retorn: 0 amb ACK OK i -1 si falla. En error, el cridador tanca la connexio.
+ ************************************************/
+int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
+                 unsigned char flags_capcalera, unsigned char flags_dades) {
+    unsigned char trama[MIDA_TRAMA], dades[MIDA_DADES];
+    char capcalera[MIDA_DADES + 1], md5[33], *nom_fitxer = NULL;
+    int mida_fitxer = 0, longitud = 0, fd_fitxer = -1;
+    int bytes_llegits = 0, bytes_enviats = 0, resultat = 0;
+
+    if (fd_socket < 0 || ruta_fitxer == NULL || tipus_transferencia == NULL) {
+        return -1;
+    }
+    mida_fitxer = obtenirMidaFitxer(ruta_fitxer);
+    if (mida_fitxer <= 0 || calcularMd5(ruta_fitxer, md5) != 0) {
+        return -1;
+    }
+    nom_fitxer = strrchr(ruta_fitxer, '/');
+    if (nom_fitxer == NULL) {
+        nom_fitxer = ruta_fitxer;
+    } else {
+        nom_fitxer++;
+    }
+    if (nom_fitxer[0] == '\0' || strchr(nom_fitxer, '&') != NULL) {
+        return -1;
+    }
+    longitud = snprintf(capcalera, sizeof(capcalera), "%s&%s&%d&%s",
+                        tipus_transferencia, nom_fitxer, mida_fitxer, md5);
+    if (longitud < 1 || longitud > MIDA_DADES ||
+        crearTrama(trama, TIPUS_CAPCALERA_FITXER, flags_capcalera,
+                   (unsigned char *)capcalera, longitud) != 0 ||
+        enviarTrama(fd_socket, trama) != 0 ||
+        esperarRespostaFitxer(fd_socket, TIPUS_READY_FITXER, "READY") != 0) {
+        return -1;
+    }
+    fd_fitxer = open(ruta_fitxer, O_RDONLY);
+    if (fd_fitxer < 0) {
+        return -1;
+    }
+    while (bytes_enviats < mida_fitxer && resultat == 0) {
+        longitud = MIDA_DADES;
+        if (mida_fitxer - bytes_enviats < longitud) {
+            longitud = mida_fitxer - bytes_enviats;
+        }
+        bytes_llegits = read(fd_fitxer, dades, longitud);
+        if (bytes_llegits != longitud ||
+            crearTrama(trama, TIPUS_DADES_FITXER, flags_dades, dades, bytes_llegits) != 0 ||
+            enviarTrama(fd_socket, trama) != 0) {
+            resultat = -1;
+        } else {
+            bytes_enviats += bytes_llegits;
+        }
+    }
+    close(fd_fitxer);
+    if (resultat != 0) {
+        return -1;
+    }
+    return esperarRespostaFitxer(fd_socket, TIPUS_ACK_FITXER, "OK");
+}
+
+/***********************************************
+ * @Finalitat: Separa els quatre camps textuals de la capcalera rebuda.
+ * @Parametres: in: trama = capcalera 0x20; tipus_esperat = operacio esperada.
+ *              out: nom_fitxer = buffer MIDA_DADES + 1; mida_fitxer = bytes.
+ *              out: md5_esperat = buffer de 33 caracters.
+ * @Retorn: 0 amb camps valids i -1 si el contingut no es correcte.
+ ************************************************/
+static int llegirCapcaleraFitxer(unsigned char *trama, char *tipus_esperat,
+                                char *nom_fitxer, int *mida_fitxer, char *md5_esperat) {
+    char dades[MIDA_DADES + 1], *camps[4];
+    int longitud = trama[POSICIO_LONGITUD], i = 0, nombre_camps = 1;
+
+    memcpy(dades, trama + POSICIO_DADES, longitud);
+    dades[longitud] = '\0';
+    if ((int)strlen(dades) != longitud) {
+        return -1;
+    }
+    camps[0] = dades;
+    for (i = 0; i < longitud; i++) {
+        if (dades[i] == '&') {
+            if (nombre_camps == 4) {
+                return -1;
+            }
+            dades[i] = '\0';
+            camps[nombre_camps] = dades + i + 1;
+            nombre_camps++;
+        }
+    }
+    if (nombre_camps != 4 || strcmp(camps[0], tipus_esperat) != 0 ||
+        camps[1][0] == '\0' || strchr(camps[1], '/') != NULL ||
+        esNumero(camps[2]) == 0 || atoi(camps[2]) <= 0 || strlen(camps[3]) != 32) {
+        return -1;
+    }
+    for (i = 0; i < 32; i++) {
+        if ((camps[3][i] < '0' || camps[3][i] > '9') &&
+            (camps[3][i] < 'a' || camps[3][i] > 'f')) {
+            return -1;
+        }
+    }
+    strcpy(nom_fitxer, camps[1]);
+    *mida_fitxer = atoi(camps[2]);
+    strcpy(md5_esperat, camps[3]);
+    return 0;
+}
+
+/***********************************************
+ * @Finalitat: Valida HEADER i prepara el fitxer real abans d'enviar READY.
+ * @Parametres: in: fd_socket = connexio; carpeta_desti = carpeta existent.
+ *              in: tipus_esperat, flags_capcalera = valors del protocol.
+ *              out: ruta_desti = buffer MIDA_RUTA_FITXER; nom_fitxer = nom rebut.
+ *              out: mida_fitxer = bytes esperats; md5_esperat = buffer de 33.
+ * @Retorn: Descriptor del fitxer obert, o -1 si no pot iniciar la recepcio.
+ ************************************************/
+static int prepararRecepcioFitxer(int fd_socket, char *carpeta_desti,
+                                 char *tipus_esperat, unsigned char flags_capcalera,
+                                 char *ruta_desti, char *nom_fitxer,
+                                 int *mida_fitxer, char *md5_esperat) {
+    unsigned char trama[MIDA_TRAMA];
+    int longitud = 0, fd_fitxer = -1;
+
+    if (rebreTrama(fd_socket, trama) != 0) {
+        return -1;
+    }
+    if (trama[POSICIO_TIPUS] != TIPUS_CAPCALERA_FITXER) {
+        if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
+            enviarNack(fd_socket, "INVALID_TYPE");
+        }
+        return -1;
+    }
+    if (trama[POSICIO_FLAGS] != flags_capcalera) {
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_FLAGS");
+        return -1;
+    }
+    longitud = trama[POSICIO_LONGITUD];
+    if (longitud < 1 || longitud > MIDA_DADES) {
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_LENGTH");
+        return -1;
+    }
+    if (llegirCapcaleraFitxer(trama, tipus_esperat, nom_fitxer,
+                            mida_fitxer, md5_esperat) != 0) {
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_DATA");
+        return -1;
+    }
+    longitud = snprintf(ruta_desti, MIDA_RUTA_FITXER, "%s/%s", carpeta_desti, nom_fitxer);
+    if (longitud < 1 || longitud >= MIDA_RUTA_FITXER) {
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_PATH");
+        return -1;
+    }
+    fd_fitxer = open(ruta_desti, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd_fitxer < 0) {
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "FILE_ERROR");
+        return -1;
+    }
+    if (respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_OK, "READY") != 0) {
+        close(fd_fitxer);
+        return -1;
+    }
+    return fd_fitxer;
+}
+
+/***********************************************
+ * @Finalitat: Escriu cada bloc binari rebut directament al fitxer desti.
+ * @Parametres: in: fd_socket = connexio; fd_fitxer = desti obert.
+ *              in: mida_fitxer = bytes totals; flags_dades = FLAGS esperat.
+ * @Retorn: Bytes escrits; -1 amb connexio o format invalid. Una mida curta
+ *          permet al cridador respondre SIZE_ERROR sense inventar cap ACK.
+ ************************************************/
+static int rebreDadesFitxer(int fd_socket, int fd_fitxer, int mida_fitxer,
+                           unsigned char flags_dades) {
+    unsigned char trama[MIDA_TRAMA];
+    int bytes_rebuts = 0, longitud = 0, bytes_esperats = 0;
+
+    while (bytes_rebuts < mida_fitxer) {
+        if (rebreTrama(fd_socket, trama) != 0) {
+            return -1;
+        }
+        if (trama[POSICIO_TIPUS] != TIPUS_DADES_FITXER) {
+            if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
+                enviarNack(fd_socket, "INVALID_TYPE");
+            }
+            return -1;
+        }
+        if (trama[POSICIO_FLAGS] != flags_dades) {
+            enviarNack(fd_socket, "INVALID_FLAGS");
+            return -1;
+        }
+        longitud = trama[POSICIO_LONGITUD];
+        if (longitud < 1 || longitud > MIDA_DADES) {
+            enviarNack(fd_socket, "INVALID_LENGTH");
+            return -1;
+        }
+        bytes_esperats = MIDA_DADES;
+        if (mida_fitxer - bytes_rebuts < bytes_esperats) {
+            bytes_esperats = mida_fitxer - bytes_rebuts;
+        }
+        if (longitud != bytes_esperats ||
+            write(fd_fitxer, trama + POSICIO_DADES, longitud) != longitud) {
+            return bytes_rebuts;
+        }
+        bytes_rebuts += longitud;
+    }
+    return bytes_rebuts;
+}
+
+/***********************************************
+ * @Finalitat: Rep un fitxer i confirma nomes despres de comprovar mida i MD5.
+ * @Parametres: in: fd_socket = connexio del cridador; carpeta_desti = desti existent.
+ *              in: tipus_esperat, flags_capcalera, flags_dades = valors de l'Annex II.
+ *              out: nom_fitxer_rebut = buffer del cridador de MIDA_DADES + 1 bytes.
+ * @Retorn: 0 amb recepcio correcta i -1 amb error. El cridador tanca la connexio
+ *          en error; el fitxer rebut, encara que sigui incomplet, es el desti real.
+ ************************************************/
+int rebreFitxer(int fd_socket, char *carpeta_desti, char *tipus_esperat,
+                unsigned char flags_capcalera, unsigned char flags_dades,
+                char *nom_fitxer_rebut) {
+    char ruta_desti[MIDA_RUTA_FITXER], nom_fitxer[MIDA_DADES + 1];
+    char md5_esperat[33], md5_rebut[33];
+    int fd_fitxer = -1, mida_fitxer = 0, bytes_rebuts = 0;
+
+    if (fd_socket < 0 || carpeta_desti == NULL || carpeta_desti[0] == '\0' ||
+        tipus_esperat == NULL || nom_fitxer_rebut == NULL) {
+        return -1;
+    }
+    nom_fitxer_rebut[0] = '\0';
+    fd_fitxer = prepararRecepcioFitxer(fd_socket, carpeta_desti, tipus_esperat,
+                                      flags_capcalera, ruta_desti, nom_fitxer,
+                                      &mida_fitxer, md5_esperat);
+    if (fd_fitxer < 0) {
+        return -1;
+    }
+    bytes_rebuts = rebreDadesFitxer(fd_socket, fd_fitxer, mida_fitxer, flags_dades);
+    if (close(fd_fitxer) < 0 && bytes_rebuts >= 0) {
+        bytes_rebuts = 0;
+    }
+    if (bytes_rebuts < 0) {
+        return -1;
+    }
+    if (bytes_rebuts != mida_fitxer) {
+        respondreFitxer(fd_socket, TIPUS_ACK_FITXER, FLAG_RESPOSTA_ERROR, "SIZE_ERROR");
+        return -1;
+    }
+    if (calcularMd5(ruta_desti, md5_rebut) != 0 || strcmp(md5_rebut, md5_esperat) != 0) {
+        respondreFitxer(fd_socket, TIPUS_ACK_FITXER, FLAG_RESPOSTA_ERROR, "MD5_ERROR");
+        return -1;
+    }
+    if (respondreFitxer(fd_socket, TIPUS_ACK_FITXER, FLAG_RESPOSTA_OK, "OK") != 0) {
+        return -1;
+    }
+    strcpy(nom_fitxer_rebut, nom_fitxer);
+    return 0;
+}

@@ -28,7 +28,7 @@ build/island/configuracio_illa.o: src/island/configuracio_illa.c src/island/conf
 	mkdir -p build/island
 	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/island/configuracio_illa.c -o build/island/configuracio_illa.o
 
-build/comu/comun.o: src/comu/comun.c src/comu/comun.h
+build/comu/comun.o: src/comu/comun.c src/comu/comun.h src/comu/trames.h
 	mkdir -p build/comu
 	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/comu/comun.c -o build/comu/comun.o
 

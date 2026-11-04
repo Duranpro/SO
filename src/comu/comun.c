@@ -3,12 +3,11 @@
  * @Proposit: Implementa les operacions comunes dels tres processos.
  * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
  * @Data creacio: 21/09/2026
- * @Data ultima modificacio: 15/10/2026
+ * @Data ultima modificacio: 04/11/2026
  *
  ************************************************/
 
 #include "comun.h"
-#include <string.h>
 
 /***********************************************
  *
@@ -95,5 +94,60 @@ int copiarText(char **desti, char *origen) {
     }
     strcpy(*desti, origen);
 
+    return 0;
+}
+
+/***********************************************
+ *
+ * @Finalitat: Obte l'MD5 d'un fitxer executant md5sum amb una pipe i un fill.
+ * @Parametres: in: ruta_fitxer = ruta del fitxer que es vol comprovar.
+ *              out: md5 = buffer del cridador de 33 caracters com a minim.
+ * @Retorn: Retorna 0 amb els 32 caracters i '\0', o -1 si hi ha un error.
+ *
+ ************************************************/
+int calcularMd5(char *ruta_fitxer, char *md5) {
+    int fd_pipe[2];
+    int pid = -1, bytes_llegits = 0, estat = 0;
+    char buffer[256];
+
+    if (ruta_fitxer == NULL || md5 == NULL || ruta_fitxer[0] == '\0') {
+        return -1;
+    }
+    md5[0] = '\0';
+    if (pipe(fd_pipe) < 0) {
+        return -1;
+    }
+    pid = fork();
+    if (pid < 0) {
+        close(fd_pipe[0]);
+        close(fd_pipe[1]);
+        return -1;
+    }
+    if (pid == 0) {
+        close(fd_pipe[0]);
+        if (dup2(fd_pipe[1], STDOUT_FILENO) < 0) {
+            close(fd_pipe[1]);
+            _exit(1);
+        }
+        if (fd_pipe[1] != STDOUT_FILENO) {
+            close(fd_pipe[1]);
+        }
+        execlp("md5sum", "md5sum", ruta_fitxer, NULL);
+        _exit(1);
+    }
+    close(fd_pipe[1]);
+    bytes_llegits = read(fd_pipe[0], buffer, sizeof(buffer));
+    close(fd_pipe[0]);
+    /* Si un senyal interromp waitpid, encara hem de recollir aquest fill. */
+    while (waitpid(pid, &estat, 0) < 0) {
+        if (errno != EINTR) {
+            return -1;
+        }
+    }
+    if (estat != 0 || bytes_llegits < 32) {
+        return -1;
+    }
+    memcpy(md5, buffer, 32);
+    md5[32] = '\0';
     return 0;
 }

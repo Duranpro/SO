@@ -1,0 +1,221 @@
+#define _GNU_SOURCE
+
+/***********************************************
+ *
+ * @Proposit: Carrega i allibera la configuracio d'Odysseus.
+ * @Autor/s: Antonio Duran Sabates i Arnau González Hortelano
+ * @Data creacio: 18/09/2026
+ * @Data ultima modificacio: 19/10/2026
+ *
+ ************************************************/
+
+#include "configuracio_odisseu.h"
+
+/***********************************************
+ *
+ * @Finalitat: Carrega la identitat i les localitzacions d'Odysseus.
+ * @Parametres: in: fd = descriptor del fitxer amb format de configuracio correcte.
+ *              out: configuracio = dades que es carreguen.
+ * @Retorn: Retorna 0 si es carreguen les dades i -1 si falla la lectura,
+ *          la reserva de memoria o una dada no cap al buffer de destinacio.
+ *
+ ************************************************/
+int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
+    char *linia = NULL, *camp = NULL;
+
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
+        return -1;
+    }
+    if (copiarText(&configuracio->ruta_carpeta, linia) != 0) {
+        free(linia);
+        return -1;
+    }
+    free(linia);
+    linia = NULL;
+
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
+        return -1;
+    }
+    camp = strtok(linia, " ");
+    if (copiarText(&configuracio->nom, camp) != 0) {
+        free(linia);
+        return -1;
+    }
+    camp = strtok(NULL, " ");
+    if (copiarText(&configuracio->ip_itaca, camp) != 0) {
+        free(linia);
+        return -1;
+    }
+    camp = strtok(NULL, " ");
+    configuracio->port_itaca = atoi(camp);
+    free(linia);
+    linia = NULL;
+
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
+        return -1;
+    }
+    camp = strtok(linia, " ");
+    if (copiarText(&configuracio->ip_illa_inicial, camp) != 0) {
+        free(linia);
+        return -1;
+    }
+    camp = strtok(NULL, " ");
+    configuracio->port_illa_inicial = atoi(camp);
+    free(linia);
+
+    if (strlen(configuracio->ip_illa_inicial) >= MIDA_IP) {
+        return -1;
+    }
+    strcpy(configuracio->ubicacio_actual, "Ithaca");
+    strcpy(configuracio->illes_conegudes[0].nom, "Aeaea");
+    strcpy(configuracio->illes_conegudes[0].ip, configuracio->ip_illa_inicial);
+    configuracio->illes_conegudes[0].port = configuracio->port_illa_inicial;
+    configuracio->num_illes_conegudes = 1;
+
+    return 0;
+}
+
+/***********************************************
+ *
+ * @Finalitat: Carrega els diners i els aliments inicials d'Odysseus.
+ * @Parametres: in: fd = descriptor del fitxer amb format i dades correctes.
+ *              out: configuracio = dades que es carreguen.
+ * @Retorn: Retorna 0 si es carreguen les dades i -1 si es produeix un error.
+ *
+ ************************************************/
+int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
+    int i = 0;
+    char *linia = NULL, *camp = NULL;
+
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
+        return -1;
+    }
+    configuracio->diners = atoi(linia);
+    free(linia);
+    linia = NULL;
+
+    linia = llegirLinia(fd);
+    if (linia == NULL) {
+        return -1;
+    }
+    configuracio->nombre_aliments = atoi(linia);
+    free(linia);
+    linia = NULL;
+    if (configuracio->nombre_aliments == 0) {
+        return 0;
+    }
+
+    configuracio->aliments = malloc(configuracio->nombre_aliments * sizeof(*configuracio->aliments));
+    if (configuracio->aliments == NULL) {
+        return -1;
+    }
+
+    for (i = 0; i < configuracio->nombre_aliments; i++) {
+        configuracio->aliments[i].nom = NULL;
+        configuracio->aliments[i].quantitat = 0;
+    }
+
+    for (i = 0; i < configuracio->nombre_aliments; i++) {
+        linia = llegirLinia(fd);
+        if (linia == NULL) {
+            return -1;
+        }
+        camp = strtok(linia, " ");
+        if (copiarText(&configuracio->aliments[i].nom, camp) != 0) {
+            free(linia);
+            return -1;
+        }
+        camp = strtok(NULL, " ");
+        configuracio->aliments[i].quantitat = atoi(camp);
+        free(linia);
+        linia = NULL;
+    }
+
+    return 0;
+}
+
+/***********************************************
+ *
+ * @Finalitat: Allibera la memoria de la configuracio d'Odysseus.
+ * @Parametres: in/out: configuracio = configuracio que es vol alliberar.
+ * @Retorn: ----.
+ *
+ ************************************************/
+void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
+    int i = 0;
+
+    free(configuracio->ruta_carpeta);
+    free(configuracio->nom);
+    free(configuracio->ip_itaca);
+    free(configuracio->ip_illa_inicial);
+
+    if (configuracio->aliments != NULL) {
+        for (i = 0; i < configuracio->nombre_aliments; i++) {
+            free(configuracio->aliments[i].nom);
+        }
+    }
+    free(configuracio->aliments);
+    free(configuracio->mercat_actual);
+    free(configuracio->viatges_consultats);
+    free(configuracio->viatge_actiu.nom_objecte);
+    free(configuracio->viatge_actiu.illa_desti);
+
+    configuracio->ruta_carpeta = NULL;
+    configuracio->nom = NULL;
+    configuracio->ip_itaca = NULL;
+    configuracio->ip_illa_inicial = NULL;
+    configuracio->aliments = NULL;
+    configuracio->mercat_actual = NULL;
+    configuracio->num_productes_mercat = 0;
+    configuracio->viatges_consultats = NULL;
+    configuracio->nombre_viatges_consultats = 0;
+    configuracio->nombre_aliments = 0;
+    configuracio->viatge_actiu.nom_objecte = NULL;
+    configuracio->viatge_actiu.illa_desti = NULL;
+    configuracio->te_viatge = 0;
+}
+
+/***********************************************
+ *
+ * @Finalitat: Obre i carrega el fitxer de configuracio d'Odysseus.
+ * @Parametres: in: nom_fitxer = ruta del fitxer de configuracio.
+ *              out: configuracio = configuracio carregada.
+ * @Retorn: Retorna 0 si es carrega correctament i -1 si es produeix un error.
+ *
+ ************************************************/
+int carregarConfiguracioOdisseu(char *nom_fitxer, ConfiguracioOdisseu *configuracio) {
+    int fd = -1, resultat = 0, caracters_escrits = 0;
+    char *missatge = NULL;
+
+    fd = open(nom_fitxer, O_RDONLY);
+    if (fd < 0) {
+        caracters_escrits = asprintf(&missatge, "Error: no s'ha pogut obrir %s.\n",  nom_fitxer);
+        if (caracters_escrits >= 0) {
+            write(2, missatge, caracters_escrits);
+            free(missatge);
+        }
+        return -1;
+    }
+
+    resultat = carregarLocalitzacio(fd, configuracio);
+    if (resultat == 0) {
+        resultat = carregarAliments(fd, configuracio);
+    }
+    close(fd);
+
+    if (resultat != 0) {
+        alliberarConfiguracioOdisseu(configuracio);
+        caracters_escrits = asprintf(&missatge, "Error: no s'ha pogut carregar %s.\n",nom_fitxer);
+        if (caracters_escrits >= 0) {
+            write(2, missatge, caracters_escrits);
+            free(missatge);
+        }
+        return -1;
+    }
+
+    return 0;
+}

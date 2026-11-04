@@ -1,49 +1,68 @@
 all: odysseus ithaca island
 
-odysseus.o: odysseus.c comandes.h configuracio_odisseu.h comun.h tipus.h
-	gcc -Wall -Wextra -std=c99 -g -O0 -c odysseus.c -o odysseus.o
+build/odysseus/odysseus.o: src/odysseus/odysseus.c src/odysseus/comandes.h src/comu/comun.h src/comu/tipus.h src/comu/trames.h src/comu/xarxa.h lib/sphragis.h src/odysseus/configuracio_odisseu.h
+	mkdir -p build/odysseus
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/odysseus/odysseus.c -o build/odysseus/odysseus.o
 
-ithaca.o: ithaca.c configuracio_itaca.h comun.h tipus.h
-	gcc -Wall -Wextra -std=c99 -g -O0 -c ithaca.c -o ithaca.o
+build/odysseus/configuracio_odisseu.o: src/odysseus/configuracio_odisseu.c src/odysseus/configuracio_odisseu.h src/comu/comun.h src/comu/tipus.h
+	mkdir -p build/odysseus
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/odysseus/configuracio_odisseu.c -o build/odysseus/configuracio_odisseu.o
 
-island.o: island.c configuracio_illa.h comun.h tipus.h sphragis.h
-	gcc -Wall -Wextra -std=c99 -g -O0 -c island.c -o island.o
+build/odysseus/comandes.o: src/odysseus/comandes.c src/odysseus/comandes.h src/comu/comun.h src/comu/tipus.h src/comu/trames.h src/comu/xarxa.h lib/sphragis.h
+	mkdir -p build/odysseus
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/odysseus/comandes.c -o build/odysseus/comandes.o
 
-configuracio_odisseu.o: configuracio_odisseu.c configuracio_odisseu.h comun.h tipus.h
-	gcc -Wall -Wextra -std=c99 -g -O0 -c configuracio_odisseu.c -o configuracio_odisseu.o
+build/ithaca/ithaca.o: src/ithaca/ithaca.c src/ithaca/configuracio_itaca.h src/comu/comun.h src/comu/tipus.h src/comu/trames.h src/comu/xarxa.h src/comu/gestio_navegants.h
+	mkdir -p build/ithaca
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/ithaca/ithaca.c -o build/ithaca/ithaca.o
 
-configuracio_itaca.o: configuracio_itaca.c configuracio_itaca.h comun.h tipus.h
-	gcc -Wall -Wextra -std=c99 -g -O0 -c configuracio_itaca.c -o configuracio_itaca.o
+build/ithaca/configuracio_itaca.o: src/ithaca/configuracio_itaca.c src/ithaca/configuracio_itaca.h src/comu/comun.h src/comu/tipus.h
+	mkdir -p build/ithaca
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/ithaca/configuracio_itaca.c -o build/ithaca/configuracio_itaca.o
 
-configuracio_illa.o: configuracio_illa.c configuracio_illa.h comun.h tipus.h sphragis.h
-	gcc -Wall -Wextra -std=c99 -g -O0 -c configuracio_illa.c -o configuracio_illa.o
+build/island/island.o: src/island/island.c src/island/configuracio_illa.h src/comu/comun.h lib/sphragis.h src/comu/tipus.h src/comu/trames.h src/comu/xarxa.h src/comu/gestio_navegants.h
+	mkdir -p build/island
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/island/island.c -o build/island/island.o
 
-comandes.o: comandes.c comandes.h comun.h
-	gcc -Wall -Wextra -std=c99 -g -O0 -c comandes.c -o comandes.o
+build/island/configuracio_illa.o: src/island/configuracio_illa.c src/island/configuracio_illa.h src/comu/comun.h lib/sphragis.h src/comu/tipus.h
+	mkdir -p build/island
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/island/configuracio_illa.c -o build/island/configuracio_illa.o
 
-comun.o: comun.c comun.h
-	gcc -Wall -Wextra -std=c99 -g -O0 -c comun.c -o comun.o
+build/comu/comun.o: src/comu/comun.c src/comu/comun.h
+	mkdir -p build/comu
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/comu/comun.c -o build/comu/comun.o
 
-odysseus: odysseus.o configuracio_odisseu.o comandes.o comun.o
-	gcc -Wall -Wextra -std=c99 -g -O0 odysseus.o configuracio_odisseu.o comandes.o comun.o -o odysseus
+build/comu/trames.o: src/comu/trames.c src/comu/trames.h
+	mkdir -p build/comu
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/comu/trames.c -o build/comu/trames.o
 
-ithaca: ithaca.o configuracio_itaca.o comun.o
-	gcc -Wall -Wextra -std=c99 -g -O0 ithaca.o configuracio_itaca.o comun.o -o ithaca
+build/comu/xarxa.o: src/comu/xarxa.c src/comu/xarxa.h
+	mkdir -p build/comu
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/comu/xarxa.c -o build/comu/xarxa.o
 
-island: island.o configuracio_illa.o comun.o sphragis.o
-	gcc -Wall -Wextra -std=c99 -g -O0 island.o configuracio_illa.o comun.o sphragis.o -o island
+build/comu/gestio_navegants.o: src/comu/gestio_navegants.c src/comu/gestio_navegants.h src/comu/trames.h
+	mkdir -p build/comu
+	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/comu/gestio_navegants.c -o build/comu/gestio_navegants.o
+
+odysseus: build/odysseus/odysseus.o build/odysseus/configuracio_odisseu.o build/odysseus/comandes.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o lib/sphragis.o
+	gcc -Wall -Wextra -std=c99 -g build/odysseus/odysseus.o build/odysseus/configuracio_odisseu.o build/odysseus/comandes.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o lib/sphragis.o -o odysseus
+
+ithaca: build/ithaca/ithaca.o build/ithaca/configuracio_itaca.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o
+	gcc -Wall -Wextra -std=c99 -g build/ithaca/ithaca.o build/ithaca/configuracio_itaca.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o -o ithaca -lpthread
+
+island: build/island/island.o build/island/configuracio_illa.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o lib/sphragis.o
+	gcc -Wall -Wextra -std=c99 -g build/island/island.o build/island/configuracio_illa.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o lib/sphragis.o -o island -lpthread
 
 valgrind: valgrind-odysseus
 
 valgrind-odysseus: odysseus
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./odysseus odysseus.dat
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./odysseus config/odysseus/odysseus.dat
 
 valgrind-ithaca: ithaca
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./ithaca ithaca.dat voyages.dat
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./ithaca config/ithaca.dat data/voyages.dat
 
 valgrind-island: island
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./island aeaea.dat stocks/Aeaea.db
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./island config/illes/aeaea.dat data/stocks/Aeaea.db
 
 clean:
-	rm -f odysseus.o ithaca.o island.o configuracio_odisseu.o configuracio_itaca.o configuracio_illa.o comandes.o comun.o odysseus ithaca island
-
+	rm -f build/comu/*.o build/comu/*.d build/odysseus/*.o build/odysseus/*.d build/ithaca/*.o build/ithaca/*.d build/island/*.o build/island/*.d odysseus ithaca island

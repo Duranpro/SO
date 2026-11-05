@@ -34,4 +34,9 @@ int rebreFitxer(int fd_socket, char *carpeta_desti, char *tipus_esperat,
                 unsigned char flags_capcalera, unsigned char flags_dades,
                 char *nom_fitxer_rebut);
 
+int rebreFitxerDesDeCapcalera(int fd_socket, unsigned char *trama_capcalera,
+                              char *carpeta_desti, char *tipus_esperat,
+                              unsigned char flags_capcalera, unsigned char flags_dades,
+                              char *nom_fitxer_rebut);
+
 #endif

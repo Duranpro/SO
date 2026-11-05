@@ -1696,7 +1696,7 @@ int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa
 }
 
 /***********************************************
- * @Finalitat: Envia DELIVER i DELIVERY sense completar encara l'entrega signada.
+ * @Finalitat: Envia DELIVERY, rep SIGNED i espera el resultat final de DELIVER.
  * @Parametres: in: configuracio = viatge, Object, ubicacio i carpeta origen.
  *              in/out: fd_illa = socket atracat, que es tanca si falla l'enviament.
  * @Retorn: 0 si mostra el resultat; -1 si falla la sortida del terminal.
@@ -1704,8 +1704,8 @@ int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa
 int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     unsigned char trama[MIDA_TRAMA];
     char dades[MIDA_DADES + 1], ruta_objecte[MIDA_RUTA_FITXER];
-    char *missatge = NULL;
-    int longitud = 0;
+    char *missatge = NULL, nom_fitxer[MIDA_DADES + 1];
+    int longitud = 0, resultat = 0, signat = 0;
 
     if (configuracio->te_viatge == 0 || configuracio->fitxer_objecte[0] == '\0') {
         return escriureMissatge("Error: cal un viatge actiu amb l'Object rebut.\n");
@@ -1737,7 +1737,38 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
         *fd_illa = -1;
         return escriureMissatge("Error: no s'ha pogut transferir l'objecte a l'illa.\n");
     }
-    return escriureMissatge("Object transferred correctly.\n");
+    escriureMissatge("Object transferred correctly.\n");
+    if (asprintf(&missatge, "%s is stamping the object...\n", configuracio->ubicacio_actual) < 0) {
+        return -1;
+    }
+    escriureMissatge(missatge);
+    free(missatge);
+    resultat = rebreTrama(*fd_illa, trama);
+    if (resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_CAPCALERA_FITXER) {
+        /* El fitxer original es reemplaça: un error ja no garanteix un Object valid. */
+        configuracio->fitxer_objecte[0] = '\0';
+        resultat = rebreFitxerDesDeCapcalera(*fd_illa, trama, configuracio->ruta_carpeta,
+                                             "SIGNED", FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA, nom_fitxer);
+        if (resultat == 0) {
+            strcpy(configuracio->fitxer_objecte, nom_fitxer);
+            signat = 1;
+            escriureMissatge("Stamped object received.\n");
+            resultat = rebreTrama(*fd_illa, trama);
+        }
+    }
+    if (signat == 1 && resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_DELIVER &&
+        trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK && trama[POSICIO_LONGITUD] == 2 &&
+        trama[POSICIO_DADES] == 'O' && trama[POSICIO_DADES + 1] == 'K') {
+        if (asprintf(&missatge, "Delivery completed.\nThe mark of %s has been obtained.\n", configuracio->ubicacio_actual) < 0) {
+            return -1;
+        }
+        resultat = escriureMissatge(missatge);
+        free(missatge);
+        return resultat;
+    }
+    close(*fd_illa);
+    *fd_illa = -1;
+    return escriureMissatge("Error: DELIVER no s'ha pogut completar.\n");
 }
 
 /***********************************************

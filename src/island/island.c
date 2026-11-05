@@ -22,6 +22,7 @@
 #include "trames.h"
 #include "xarxa.h"
 #include "gestio_navegants.h"
+#include "sphragis.h"
 
 int fd_avis_finalitzacio = -1;
 int fd_servidor = -1;
@@ -412,16 +413,16 @@ void alliberarPlacaPort(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex
 }
 
 /***********************************************
- * @Finalitat: Valida DELIVER i rep DELIVERY al mateix fil, sense segellar-lo.
+ * @Finalitat: Rep DELIVERY, segella la imatge i retorna SIGNED abans del final DELIVER.
  * @Parametres: in: fd_navegant, peticio, nom = connexio i identificacio actuals.
  *              in: configuracio = carpeta desti de l'illa.
  *              in/out: port, mutex_port = registre compartit dels atracats.
- * @Retorn: 0 amb DELIVERY correcta; -1 si rebutja o falla, per tancar la connexio.
+ * @Retorn: 0 amb DELIVER complet; -1 si rebutja o falla, per tancar la connexio.
  ************************************************/
 int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
                      ConfiguracioIlla *configuracio, EstatPort *port, pthread_mutex_t *mutex_port) {
     unsigned char resposta[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], nom_fitxer[MIDA_DADES + 1];
+    char dades[MIDA_DADES + 1], nom_fitxer[MIDA_DADES + 1], ruta_fitxer[MIDA_RUTA_FITXER];
     char *objecte = NULL, *missatge = NULL;
     int longitud = peticio[POSICIO_LONGITUD], i = 0, atracat = 0;
 
@@ -464,11 +465,36 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
     }
     if (rebreFitxer(fd_navegant, configuracio->ruta_carpeta, "DELIVERY",
                     FLAG_PETICIO, FLAG_DADES_PETICIO, nom_fitxer) != 0) {
-        write(2, "Error: no s'ha pogut rebre DELIVERY.\n", strlen("Error: no s'ha pogut rebre DELIVERY.\n"));
+        crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"DELIVERY_ERROR", 14);
+        enviarTrama(fd_navegant, resposta);
         return -1;
     }
     write(1, ">>> Object received correctly.\n", strlen(">>> Object received correctly.\n"));
-    return 0;
+    longitud = asprintf(&missatge, ">>> Stamping object with the glyph of %s...\n", configuracio->nom);
+    if (longitud >= 0) {
+        write(1, missatge, longitud);
+        free(missatge);
+    }
+    longitud = snprintf(ruta_fitxer, sizeof(ruta_fitxer), "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
+    if (longitud < 1 || longitud >= MIDA_RUTA_FITXER ||
+        SPHRAGIS_sign_with_glyph(configuracio->nom, ruta_fitxer, ruta_fitxer) != SPHRAGIS_OK) {
+        crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"STAMP_ERROR", 11);
+        enviarTrama(fd_navegant, resposta);
+        return -1;
+    }
+    longitud = asprintf(&missatge, ">>> Object stamped successfully.\n>>> Sending stamped object to %s...\n", nom);
+    if (longitud >= 0) {
+        write(1, missatge, longitud);
+        free(missatge);
+    }
+    if (enviarFitxer(fd_navegant, ruta_fitxer, "SIGNED", FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA) != 0) {
+        crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"SIGNED_ERROR", 12);
+        enviarTrama(fd_navegant, resposta);
+        return -1;
+    }
+    write(1, ">>> Transfer completed.\n", strlen(">>> Transfer completed.\n"));
+    crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_OK, (unsigned char *)"OK", 2);
+    return enviarTrama(fd_navegant, resposta);
 }
 
 /***********************************************

@@ -50,6 +50,7 @@ typedef struct {
     int recompensa;
     int disponible;
     int fracassat;
+    int completat;
     char odysseus_assignat[MIDA_NOM_ODYSSEUS];
 } Viatge;
 
@@ -71,6 +72,7 @@ typedef struct {
     int *viatges_consultats;
     int nombre_viatges_consultats;
     int te_viatge;
+    int entrega_completada;
     Viatge viatge_actiu;
     char fitxer_objecte[MIDA_NOM_FITXER];
 } ConfiguracioOdisseu;

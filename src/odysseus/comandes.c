@@ -992,16 +992,27 @@ int mostrarResultatComanda(int resultat, int tipus) {
  * @Finalitat: Connecta amb Ithaca i intercanvia la identificacio d'Odysseus.
  * @Parametres: in: configuracio = nom i adreca d'Ithaca ja carregats.
  *              in/out: fd_ithaca = descriptor de la connexio actual.
+ *              in/out: fd_illa = port que cal abandonar abans de tornar.
  * @Retorn: Retorna 0 si pot mostrar el resultat i -1 si falla la sortida.
  *
  ************************************************/
-int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
+int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa) {
     unsigned char trama[MIDA_TRAMA];
-    char resposta[3];
+    char resposta[3], *missatge = NULL;
     int resultat = -1, longitud = 0;
 
-    if (strcasecmp(configuracio->ubicacio_actual, "Ithaca") != 0) {
-        return escriureMissatge("Error: Odysseus no es a Ithaca.\n");
+    if (*fd_illa >= 0) {
+        longitud = asprintf(&missatge, "Leaving %s...\n", configuracio->ubicacio_actual);
+        if (longitud < 0) {
+            return -1;
+        }
+        escriureMissatge(missatge);
+        free(missatge);
+        if (sortirIlla(configuracio, fd_illa) != 0) {
+            return escriureMissatge("Error: Island no ha confirmat la sortida.\n");
+        }
+        strcpy(configuracio->ubicacio_actual, "At sea");
+        escriureMissatge("Returning directly to Ithaca...\n");
     }
     if (*fd_ithaca >= 0) {
         return 0;
@@ -1037,6 +1048,7 @@ int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
             free(configuracio->viatges_consultats);
             configuracio->viatges_consultats = NULL;
             configuracio->nombre_viatges_consultats = 0;
+            strcpy(configuracio->ubicacio_actual, "Ithaca");
             return escriureMissatge("Connected to Ithaca.\n");
         }
     }
@@ -1261,6 +1273,7 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
                     copiarText(&viatge.illa_desti, camps[3]) == 0) {
                     configuracio->viatge_actiu = viatge;
                     configuracio->te_viatge = 1;
+                    configuracio->entrega_completada = 0;
                     configuracio->fitxer_objecte[0] = '\0';
                     if (asprintf(&missatge, "Voyage %d accepted.\nDestination: %s.\n",
                               identificador, viatge.illa_desti) < 0) {
@@ -1730,6 +1743,7 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     }
     escriureMissatge(missatge);
     free(missatge);
+    configuracio->entrega_completada = 0;
     if (crearTrama(trama, TIPUS_DELIVER, FLAG_PETICIO, (unsigned char *)dades, longitud) != 0 ||
         enviarTrama(*fd_illa, trama) != 0 ||
         enviarFitxer(*fd_illa, ruta_objecte, "DELIVERY", FLAG_PETICIO, FLAG_DADES_PETICIO) != 0) {
@@ -1759,6 +1773,7 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     if (signat == 1 && resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_DELIVER &&
         trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK && trama[POSICIO_LONGITUD] == 2 &&
         trama[POSICIO_DADES] == 'O' && trama[POSICIO_DADES + 1] == 'K') {
+        configuracio->entrega_completada = 1;
         if (asprintf(&missatge, "Delivery completed.\nThe mark of %s has been obtained.\n", configuracio->ubicacio_actual) < 0) {
             return -1;
         }
@@ -1769,6 +1784,70 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     close(*fd_illa);
     *fd_illa = -1;
     return escriureMissatge("Error: DELIVER no s'ha pogut completar.\n");
+}
+
+/***********************************************
+ * @Finalitat: Presenta la imatge segellada i cobra nomes el CLAIM final correcte.
+ * @Parametres: in/out: configuracio = missio activa i diners.
+ *              in/out: fd_ithaca = connexio amb Ithaca; in: fd_illa = illa actual.
+ * @Retorn: 0 si mostra el resultat, -1 si falla la sortida.
+ ************************************************/
+int executarClaim(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int fd_illa) {
+    unsigned char trama[MIDA_TRAMA];
+    char dades[MIDA_DADES + 1], ruta_objecte[MIDA_RUTA_FITXER], *missatge = NULL;
+    int longitud = 0, resultat = -1, recompensa = 0;
+
+    if (*fd_ithaca < 0 || fd_illa >= 0 || strcasecmp(configuracio->ubicacio_actual, "Ithaca") != 0 ||
+        configuracio->te_viatge == 0 || configuracio->fitxer_objecte[0] == '\0' || configuracio->entrega_completada != 1) {
+        return escriureMissatge("Error: cal tornar a Ithaca amb un DELIVER complet.\n");
+    }
+    longitud = snprintf(ruta_objecte, sizeof(ruta_objecte), "%s/%s", configuracio->ruta_carpeta, configuracio->fitxer_objecte);
+    if (longitud < 1 || longitud >= MIDA_RUTA_FITXER || obtenirMidaFitxer(ruta_objecte) <= 0) {
+        return escriureMissatge("Error: no es pot obrir l'Object segellat.\n");
+    }
+    longitud = asprintf(&missatge, "Presenting the stamped %s...\n", configuracio->viatge_actiu.nom_objecte);
+    if (longitud < 0) {
+        return -1;
+    }
+    escriureMissatge(missatge);
+    free(missatge);
+    longitud = snprintf(dades, sizeof(dades), "%d", configuracio->viatge_actiu.identificador);
+    if (crearTrama(trama, TIPUS_CLAIM, FLAG_PETICIO, (unsigned char *)dades, longitud) == 0 &&
+        enviarTrama(*fd_ithaca, trama) == 0 &&
+        enviarFitxer(*fd_ithaca, ruta_objecte, "CLAIM", FLAG_PETICIO, FLAG_DADES_PETICIO) == 0) {
+        escriureMissatge("Object transferred correctly.\n");
+        resultat = rebreTrama(*fd_ithaca, trama);
+    }
+    if (resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_CLAIM && trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK &&
+        trama[POSICIO_LONGITUD] >= 4 && trama[POSICIO_LONGITUD] <= MIDA_DADES) {
+        longitud = trama[POSICIO_LONGITUD];
+        memcpy(dades, trama + POSICIO_DADES, longitud);
+        dades[longitud] = '\0';
+        if ((int)strlen(dades) == longitud && strncmp(dades, "OK&", 3) == 0 && esNumero(dades + 3) == 1) {
+            recompensa = atoi(dades + 3);
+            if (recompensa <= INT_MAX - configuracio->diners) {
+                longitud = asprintf(&missatge, "Glyph of %s verified.\nVoyage %d completed.\nReward received: %d gold.\n",
+                                    configuracio->viatge_actiu.illa_desti, configuracio->viatge_actiu.identificador, recompensa);
+                configuracio->diners += recompensa;
+                free(configuracio->viatge_actiu.nom_objecte);
+                free(configuracio->viatge_actiu.illa_desti);
+                free(configuracio->viatge_actiu.ruta_fitxer);
+                memset(&configuracio->viatge_actiu, 0, sizeof(configuracio->viatge_actiu));
+                configuracio->te_viatge = 0;
+                configuracio->entrega_completada = 0;
+                configuracio->fitxer_objecte[0] = '\0';
+                if (longitud < 0) {
+                    return -1;
+                }
+                resultat = escriureMissatge(missatge);
+                free(missatge);
+                return resultat;
+            }
+        }
+    }
+    close(*fd_ithaca);
+    *fd_ithaca = -1;
+    return escriureMissatge("Error: CLAIM rebutjat o transferencia incorrecta.\n");
 }
 
 /***********************************************
@@ -1797,11 +1876,13 @@ int executarTerminal(int *finalitzar_programa, ConfiguracioOdisseu *configuracio
         } else {
             resultat_analisi = analitzarComanda(linia, &comanda);
             if (resultat_analisi == 1 && comanda.tipus == COMANDA_CONNECT) {
-                resultat = connectarIthaca(configuracio, fd_ithaca);
+                resultat = connectarIthaca(configuracio, fd_ithaca, fd_illa);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_LIST_VOYAGES) {
                 resultat = executarListVoyages(configuracio, fd_ithaca);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_ACCEPT) {
                 resultat = executarAccept(configuracio, fd_ithaca, comanda.valor);
+            } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_CLAIM) {
+                resultat = executarClaim(configuracio, fd_ithaca, *fd_illa);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_DELIVER) {
                 resultat = executarDeliver(configuracio, fd_illa);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_SAIL) {

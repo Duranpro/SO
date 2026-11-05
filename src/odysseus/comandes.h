@@ -57,10 +57,11 @@ int analitzarCompraVenda(char *paraules[], int nombre_paraules, int tipus,Comand
 int analitzarSenseArguments(int nombre_paraules, int tipus,Comanda *comanda);
 int analitzarComanda(char *linia, Comanda *comanda);
 int mostrarResultatComanda(int resultat, int tipus);
-int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca);
+int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa);
 int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca);
 int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identificador);
 int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa);
+int executarClaim(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int fd_illa);
 int desconnectarIthaca(int *fd_ithaca);
 int consumirProvisions(ConfiguracioOdisseu *configuracio, int quantitat);
 int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,

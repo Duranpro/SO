@@ -20,6 +20,7 @@
 #include "trames.h"
 #include "xarxa.h"
 #include "gestio_navegants.h"
+#include "sphragis.h"
 
 int fd_avis_finalitzacio = -1;
 int fd_servidor = -1;
@@ -89,7 +90,7 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
     pthread_mutex_lock(mutex_viatges);
     for (i = 0; i < configuracio->nombre_viatges; i++) {
         viatge = &configuracio->viatges[i];
-        if (viatge->disponible == 0 && viatge->fracassat == 0 &&viatge->identificador != viatge_actual && strcmp(viatge->odysseus_assignat, nom_odysseus) == 0) {
+        if (viatge->disponible == 0 && viatge->fracassat == 0 && viatge->completat == 0 &&viatge->identificador != viatge_actual && strcmp(viatge->odysseus_assignat, nom_odysseus) == 0) {
             viatge->fracassat = 1;
         }
         if (configuracio->viatges[i].disponible == 1) {
@@ -270,6 +271,99 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
 }
 
 /***********************************************
+ * @Finalitat: Rep la prova, comprova el glif i completa la missio una sola vegada.
+ * @Parametres: in: fd_navegant, peticio, nom_odysseus = connexio identificada.
+ *              in/out: configuracio, mutex_viatges = viatges compartits.
+ *              out: viatge_actual = 0 quan es completa la missio.
+ * @Retorn: 0 amb resposta correcta; -1 amb error per tancar la connexio.
+ ************************************************/
+int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *configuracio,
+                    pthread_mutex_t *mutex_viatges, char *nom_odysseus, int *viatge_actual) {
+    unsigned char trama[MIDA_TRAMA];
+    char dades[MIDA_DADES + 1], nom_objecte[MIDA_DADES + 1], desti[MIDA_NOM_ILLA];
+    char fitxer_viatge[MIDA_RUTA_FITXER], ruta_rebuda[MIDA_RUTA_FITXER], nom_fitxer[MIDA_DADES + 1];
+    char error[MIDA_DADES + 1] = "INVALID_CLAIM", *esperat = NULL, *missatge = NULL;
+    Viatge *viatge = NULL;
+    int identificador = 0, recompensa = 0, valida = 0, longitud = peticio[POSICIO_LONGITUD];
+
+    if (peticio[POSICIO_TIPUS] == TIPUS_CLAIM && peticio[POSICIO_FLAGS] == FLAG_PETICIO &&
+        longitud > 0 && longitud <= MIDA_DADES) {
+        memcpy(dades, peticio + POSICIO_DADES, longitud);
+        dades[longitud] = '\0';
+        if ((int)strlen(dades) == longitud && esNumero(dades) == 1) {
+            identificador = atoi(dades);
+        }
+    }
+    pthread_mutex_lock(mutex_viatges);
+    if (identificador > 0 && identificador <= configuracio->nombre_viatges) {
+        viatge = &configuracio->viatges[identificador - 1];
+        if (viatge->disponible == 0 && viatge->fracassat == 0 && viatge->completat == 0 &&
+            strcmp(viatge->odysseus_assignat, nom_odysseus) == 0) {
+            recompensa = viatge->recompensa;
+            valida = 1;
+            if (snprintf(nom_objecte, sizeof(nom_objecte), "%s", viatge->nom_objecte) >= (int)sizeof(nom_objecte) ||
+                snprintf(fitxer_viatge, sizeof(fitxer_viatge), "%s", viatge->ruta_fitxer) >= (int)sizeof(fitxer_viatge) ||
+                snprintf(desti, sizeof(desti), "%s", viatge->illa_desti) >= (int)sizeof(desti)) {
+                valida = 0;
+            }
+        }
+    }
+    pthread_mutex_unlock(mutex_viatges);
+    if (valida == 1) {
+        longitud = asprintf(&missatge, ">>> %s claims voyage %d.\n>>> Receiving stamped %s...\n", nom_odysseus, identificador, nom_objecte);
+        if (longitud >= 0) {
+            write(1, missatge, longitud);
+            free(missatge);
+        }
+        strcpy(error, "TRANSFER_ERROR");
+        valida = rebreFitxer(fd_navegant, configuracio->ruta_carpeta, "CLAIM",
+                              FLAG_PETICIO, FLAG_DADES_PETICIO, nom_fitxer) == 0;
+    }
+    if (valida == 1) {
+        write(1, ">>> Object received correctly.\n", strlen(">>> Object received correctly.\n"));
+        esperat = strrchr(fitxer_viatge, '/');
+        if (esperat == NULL) {
+            esperat = fitxer_viatge;
+        } else {
+            esperat++;
+        }
+        strcpy(error, "INVALID_FILENAME");
+        valida = strcmp(esperat, nom_fitxer) == 0;
+    }
+    if (valida == 1) {
+        longitud = snprintf(ruta_rebuda, sizeof(ruta_rebuda), "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
+        strcpy(error, "INVALID_GLYPH");
+        valida = longitud > 0 && longitud < MIDA_RUTA_FITXER && SPHRAGIS_has_glyph(desti, ruta_rebuda) == 1;
+    }
+    if (valida == 1) {
+        /* Revalidem i actualitzem junts: nomes un CLAIM pot cobrar aquest viatge. */
+        pthread_mutex_lock(mutex_viatges);
+        valida = viatge->identificador == identificador && viatge->disponible == 0 &&
+                  viatge->fracassat == 0 && viatge->completat == 0 && strcmp(viatge->odysseus_assignat, nom_odysseus) == 0;
+        if (valida == 1) {
+            viatge->completat = 1;
+        }
+        pthread_mutex_unlock(mutex_viatges);
+        strcpy(error, "CLAIM_ALREADY_COMPLETED");
+    }
+    if (valida == 1) {
+        *viatge_actual = 0;
+        longitud = asprintf(&missatge, ">>> Glyph of %s verified.\n>>> Voyage %d completed by %s.\n>>> Reward granted: %d gold.\n",
+                            desti, identificador, nom_odysseus, recompensa);
+        if (longitud >= 0) {
+            write(1, missatge, longitud);
+            free(missatge);
+        }
+        longitud = snprintf(dades, sizeof(dades), "OK&%d", recompensa);
+        crearTrama(trama, TIPUS_CLAIM, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
+        return enviarTrama(fd_navegant, trama);
+    }
+    crearTrama(trama, TIPUS_CLAIM, FLAG_RESPOSTA_ERROR, (unsigned char *)error, strlen(error));
+    enviarTrama(fd_navegant, trama);
+    return -1;
+}
+
+/***********************************************
  *
  * @Finalitat: Confirma la sortida d'Ithaca sense modificar el viatge assignat.
  * @Parametres: in: fd_navegant = descriptor del navegant.
@@ -317,7 +411,7 @@ void *atendreOdysseus(void *arg) {
     pthread_mutex_t *mutex_viatges = dades_navegant->mutex_viatges;
     int fd_navegant = dades_navegant->fd_navegant, longitud = 0, caracters_escrits = 0;
     int fd_finalitzacio = dades_navegant->fd_finalitzacio;
-    int resultat = 0, viatge_actual = 0;
+    int resultat = 0, viatge_actual = 0, i = 0, te_assignacio = 0;
 
     free(arg);
     if (rebreTramaNavegant(fd_navegant, fd_finalitzacio, trama) != 0) {
@@ -357,7 +451,19 @@ void *atendreOdysseus(void *arg) {
         finalitzarNavegant(control);
         return NULL;
     }
-    caracters_escrits = asprintf(&missatge, ">>> %s connected to Ithaca.\n", nom_odysseus);
+    pthread_mutex_lock(mutex_viatges);
+    for (i = 0; i < configuracio->nombre_viatges; i++) {
+        if (configuracio->viatges[i].disponible == 0 && configuracio->viatges[i].fracassat == 0 &&
+            configuracio->viatges[i].completat == 0 && strcmp(configuracio->viatges[i].odysseus_assignat, nom_odysseus) == 0) {
+            te_assignacio = 1;
+        }
+    }
+    pthread_mutex_unlock(mutex_viatges);
+    if (te_assignacio == 1) {
+        caracters_escrits = asprintf(&missatge, ">>> %s returned to Ithaca.\n", nom_odysseus);
+    } else {
+        caracters_escrits = asprintf(&missatge, ">>> %s connected to Ithaca.\n", nom_odysseus);
+    }
     if (caracters_escrits >= 0) {
         write(1, missatge, caracters_escrits);
         free(missatge);
@@ -370,6 +476,8 @@ void *atendreOdysseus(void *arg) {
             resultat = gestionarListVoyages(fd_navegant, trama, configuracio, mutex_viatges, nom_odysseus, viatge_actual);
         } else if (trama[POSICIO_TIPUS] == TIPUS_ACCEPT) {
             resultat = gestionarAccept(fd_navegant, trama, configuracio, mutex_viatges, nom_odysseus, &viatge_actual);
+        } else if (trama[POSICIO_TIPUS] == TIPUS_CLAIM) {
+            resultat = gestionarClaim(fd_navegant, trama, configuracio, mutex_viatges, nom_odysseus, &viatge_actual);
         } else if (trama[POSICIO_TIPUS] == TIPUS_DESCONNEXIO_ITHACA) {
             resultat = gestionarDesconnexio(fd_navegant, trama, nom_odysseus);
         } else {

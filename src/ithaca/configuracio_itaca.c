@@ -103,6 +103,7 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     viatge->recompensa = 0;
     viatge->disponible = 1;
     viatge->fracassat = 0;
+    viatge->completat = 0;
     viatge->odysseus_assignat[0] = '\0';
     configuracio->nombre_viatges++;
 

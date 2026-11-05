@@ -12,7 +12,7 @@ build/odysseus/comandes.o: src/odysseus/comandes.c src/odysseus/comandes.h src/c
 	mkdir -p build/odysseus
 	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/odysseus/comandes.c -o build/odysseus/comandes.o
 
-build/ithaca/ithaca.o: src/ithaca/ithaca.c src/ithaca/configuracio_itaca.h src/comu/comun.h src/comu/tipus.h src/comu/trames.h src/comu/xarxa.h src/comu/gestio_navegants.h
+build/ithaca/ithaca.o: src/ithaca/ithaca.c src/ithaca/configuracio_itaca.h src/comu/comun.h src/comu/tipus.h src/comu/trames.h src/comu/xarxa.h src/comu/gestio_navegants.h lib/sphragis.h
 	mkdir -p build/ithaca
 	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/ithaca/ithaca.c -o build/ithaca/ithaca.o
 
@@ -47,8 +47,8 @@ build/comu/gestio_navegants.o: src/comu/gestio_navegants.c src/comu/gestio_naveg
 odysseus: build/odysseus/odysseus.o build/odysseus/configuracio_odisseu.o build/odysseus/comandes.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o lib/sphragis.o
 	gcc -Wall -Wextra -std=c99 -g build/odysseus/odysseus.o build/odysseus/configuracio_odisseu.o build/odysseus/comandes.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o lib/sphragis.o -o odysseus
 
-ithaca: build/ithaca/ithaca.o build/ithaca/configuracio_itaca.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o
-	gcc -Wall -Wextra -std=c99 -g build/ithaca/ithaca.o build/ithaca/configuracio_itaca.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o -o ithaca -lpthread
+ithaca: build/ithaca/ithaca.o build/ithaca/configuracio_itaca.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o lib/sphragis.o
+	gcc -Wall -Wextra -std=c99 -g build/ithaca/ithaca.o build/ithaca/configuracio_itaca.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o lib/sphragis.o -o ithaca -lpthread
 
 island: build/island/island.o build/island/configuracio_illa.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o lib/sphragis.o
 	gcc -Wall -Wextra -std=c99 -g build/island/island.o build/island/configuracio_illa.o build/comu/comun.o build/comu/trames.o build/comu/xarxa.o build/comu/gestio_navegants.o lib/sphragis.o -o island -lpthread

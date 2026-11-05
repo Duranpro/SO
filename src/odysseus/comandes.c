@@ -1696,6 +1696,51 @@ int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa
 }
 
 /***********************************************
+ * @Finalitat: Envia DELIVER i DELIVERY sense completar encara l'entrega signada.
+ * @Parametres: in: configuracio = viatge, Object, ubicacio i carpeta origen.
+ *              in/out: fd_illa = socket atracat, que es tanca si falla l'enviament.
+ * @Retorn: 0 si mostra el resultat; -1 si falla la sortida del terminal.
+ ************************************************/
+int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
+    unsigned char trama[MIDA_TRAMA];
+    char dades[MIDA_DADES + 1], ruta_objecte[MIDA_RUTA_FITXER];
+    char *missatge = NULL;
+    int longitud = 0;
+
+    if (configuracio->te_viatge == 0 || configuracio->fitxer_objecte[0] == '\0') {
+        return escriureMissatge("Error: cal un viatge actiu amb l'Object rebut.\n");
+    }
+    /* Durant WAIT el terminal nomes executa MAP i STATUS a esperarPort. */
+    if (*fd_illa < 0 || strcasecmp(configuracio->ubicacio_actual, configuracio->viatge_actiu.illa_desti) != 0) {
+        return escriureMissatge("Error: cal estar atracat a l'illa de desti.\n");
+    }
+    longitud = snprintf(ruta_objecte, sizeof(ruta_objecte), "%s/%s",
+                        configuracio->ruta_carpeta, configuracio->fitxer_objecte);
+    if (longitud < 1 || longitud >= MIDA_RUTA_FITXER || obtenirMidaFitxer(ruta_objecte) <= 0) {
+        return escriureMissatge("Error: no es pot obrir l'Object rebut.\n");
+    }
+    longitud = snprintf(dades, sizeof(dades), "%d&%s",
+                        configuracio->viatge_actiu.identificador, configuracio->viatge_actiu.nom_objecte);
+    if (longitud < 1 || longitud > MIDA_DADES) {
+        return escriureMissatge("Error: dades DELIVER massa llargues.\n");
+    }
+    if (asprintf(&missatge, "Delivering %s to %s...\n", configuracio->viatge_actiu.nom_objecte,
+                 configuracio->ubicacio_actual) < 0) {
+        return -1;
+    }
+    escriureMissatge(missatge);
+    free(missatge);
+    if (crearTrama(trama, TIPUS_DELIVER, FLAG_PETICIO, (unsigned char *)dades, longitud) != 0 ||
+        enviarTrama(*fd_illa, trama) != 0 ||
+        enviarFitxer(*fd_illa, ruta_objecte, "DELIVERY", FLAG_PETICIO, FLAG_DADES_PETICIO) != 0) {
+        close(*fd_illa);
+        *fd_illa = -1;
+        return escriureMissatge("Error: no s'ha pogut transferir l'objecte a l'illa.\n");
+    }
+    return escriureMissatge("Object transferred correctly.\n");
+}
+
+/***********************************************
  *
  * @Finalitat: Executa el terminal interactiu fins que arriba EOF.
  * @Parametres: in: finalitzar_programa = indica si s'ha rebut SIGINT.
@@ -1726,6 +1771,8 @@ int executarTerminal(int *finalitzar_programa, ConfiguracioOdisseu *configuracio
                 resultat = executarListVoyages(configuracio, fd_ithaca);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_ACCEPT) {
                 resultat = executarAccept(configuracio, fd_ithaca, comanda.valor);
+            } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_DELIVER) {
+                resultat = executarDeliver(configuracio, fd_illa);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_SAIL) {
                 resultat = executarSail(configuracio, fd_ithaca, fd_illa,comanda.argument, finalitzar_programa);
             } else if (resultat_analisi == 1 && comanda.tipus == COMANDA_LIST_MARKET) {

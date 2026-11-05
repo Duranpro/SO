@@ -412,6 +412,66 @@ void alliberarPlacaPort(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex
 }
 
 /***********************************************
+ * @Finalitat: Valida DELIVER i rep DELIVERY al mateix fil, sense segellar-lo.
+ * @Parametres: in: fd_navegant, peticio, nom = connexio i identificacio actuals.
+ *              in: configuracio = carpeta desti de l'illa.
+ *              in/out: port, mutex_port = registre compartit dels atracats.
+ * @Retorn: 0 amb DELIVERY correcta; -1 si rebutja o falla, per tancar la connexio.
+ ************************************************/
+int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
+                     ConfiguracioIlla *configuracio, EstatPort *port, pthread_mutex_t *mutex_port) {
+    unsigned char resposta[MIDA_TRAMA];
+    char dades[MIDA_DADES + 1], nom_fitxer[MIDA_DADES + 1];
+    char *objecte = NULL, *missatge = NULL;
+    int longitud = peticio[POSICIO_LONGITUD], i = 0, atracat = 0;
+
+    if (peticio[POSICIO_TIPUS] != TIPUS_DELIVER || peticio[POSICIO_FLAGS] != FLAG_PETICIO ||
+        longitud < 1 || longitud > MIDA_DADES) {
+        crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"INVALID_REQUEST", 15);
+        enviarTrama(fd_navegant, resposta);
+        return -1;
+    }
+    memcpy(dades, peticio + POSICIO_DADES, longitud);
+    dades[longitud] = '\0';
+    objecte = strchr(dades, '&');
+    if (objecte != NULL) {
+        *objecte = '\0';
+        objecte++;
+    }
+    if (objecte == NULL || objecte[0] == '\0' || strchr(objecte, '&') != NULL ||
+        (int)strlen(dades) + 1 + (int)strlen(objecte) != longitud ||
+        esNumero(dades) == 0 || atoi(dades) < 1) {
+        crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"INVALID_DATA", 12);
+        enviarTrama(fd_navegant, resposta);
+        return -1;
+    }
+    pthread_mutex_lock(mutex_port);
+    for (i = 0; i < port->num_atracats; i++) {
+        if (port->atracats[i].fd_navegant == fd_navegant) {
+            atracat = 1;
+        }
+    }
+    pthread_mutex_unlock(mutex_port);
+    if (atracat == 0) {
+        crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"Cal estar atracat", 17);
+        enviarTrama(fd_navegant, resposta);
+        return -1;
+    }
+    longitud = asprintf(&missatge, ">>> %s requests delivery of voyage %d.\n>>> Receiving %s...\n", nom, atoi(dades), objecte);
+    if (longitud >= 0) {
+        write(1, missatge, longitud);
+        free(missatge);
+    }
+    if (rebreFitxer(fd_navegant, configuracio->ruta_carpeta, "DELIVERY",
+                    FLAG_PETICIO, FLAG_DADES_PETICIO, nom_fitxer) != 0) {
+        write(2, "Error: no s'ha pogut rebre DELIVERY.\n", strlen("Error: no s'ha pogut rebre DELIVERY.\n"));
+        return -1;
+    }
+    write(1, ">>> Object received correctly.\n", strlen(">>> Object received correctly.\n"));
+    return 0;
+}
+
+/***********************************************
  *
  * @Finalitat: Rep l'arribada d'un Odysseus i el mante al port fins que desconnecta.
  * @Parametres: in: arg = parametres reservats per a aquest navegant.
@@ -505,6 +565,10 @@ void *atendreOdysseusIsland(void *arg) {
             tipus = trama[POSICIO_TIPUS];
             if (tipus == TIPUS_NACK) {
                 break;
+            }
+            if (tipus == TIPUS_DELIVER) {
+                resultat = gestionarDeliver(fd_navegant, trama, vaixell.nom, configuracio, port, mutex_port);
+                continue;
             }
             if (tipus == TIPUS_LIST_MARKET || tipus == TIPUS_BUY || tipus == TIPUS_SELL ||tipus == TIPUS_BUY_MAP || tipus == TIPUS_SORTIDA_ILLA) {
                 if (trama[POSICIO_FLAGS] != FLAG_PETICIO) {

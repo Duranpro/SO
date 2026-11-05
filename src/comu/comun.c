@@ -197,12 +197,17 @@ static int respondreFitxer(int fd_socket, unsigned char tipus,
 static int esperarRespostaFitxer(int fd_socket, unsigned char tipus, char *text) {
     unsigned char trama[MIDA_TRAMA];
     char resposta[MIDA_DADES + 1];
-    int longitud = 0;
+    int longitud = 0, rebuig_deliver = 0;
 
     if (rebreTrama(fd_socket, trama) != 0) {
         return -1;
     }
-    if (trama[POSICIO_TIPUS] != tipus) {
+    /* DELIVER pot ser rebutjat mentre ja esperem el READY de DELIVERY. */
+    if (tipus == TIPUS_READY_FITXER && trama[POSICIO_TIPUS] == TIPUS_DELIVER &&
+        trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR) {
+        rebuig_deliver = 1;
+    }
+    if (trama[POSICIO_TIPUS] != tipus && rebuig_deliver == 0) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
             enviarNack(fd_socket, "INVALID_TYPE");
         }

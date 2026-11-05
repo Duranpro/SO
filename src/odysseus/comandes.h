@@ -60,6 +60,7 @@ int mostrarResultatComanda(int resultat, int tipus);
 int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca);
 int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca);
 int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identificador);
+int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa);
 int desconnectarIthaca(int *fd_ithaca);
 int consumirProvisions(ConfiguracioOdisseu *configuracio, int quantitat);
 int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,

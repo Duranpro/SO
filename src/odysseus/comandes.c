@@ -158,13 +158,26 @@ int mostrarStatus(ConfiguracioOdisseu *configuracio) {
     write(1, missatge, longitud);
     free(missatge);
     if (configuracio->te_viatge == 1) {
-        longitud = asprintf(&missatge, "Current voyage: %s -> %s\nReward: %d\nCurrent location: %s\n",
+        longitud = asprintf(&missatge, "Current voyage: %s -> %s\nReward: %d\n",
                              configuracio->viatge_actiu.nom_objecte, configuracio->viatge_actiu.illa_desti,
-                             configuracio->viatge_actiu.recompensa, configuracio->ubicacio_actual);
+                             configuracio->viatge_actiu.recompensa);
     } else {
-        longitud = asprintf(&missatge, "Current voyage: None\nCurrent location: %s\n",
-                             configuracio->ubicacio_actual);
+        longitud = asprintf(&missatge, "Current voyage: None\n");
     }
+    if (longitud < 0) {
+        return -1;
+    }
+    write(1, missatge, longitud);
+    free(missatge);
+    if (configuracio->te_viatge == 1 && configuracio->fitxer_objecte[0] != '\0') {
+        longitud = asprintf(&missatge, "Object: %s\n", configuracio->fitxer_objecte);
+        if (longitud < 0) {
+            return -1;
+        }
+        write(1, missatge, longitud);
+        free(missatge);
+    }
+    longitud = asprintf(&missatge, "Current location: %s\n", configuracio->ubicacio_actual);
     if (longitud < 0) {
         return -1;
     }
@@ -1248,12 +1261,26 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
                     copiarText(&viatge.illa_desti, camps[3]) == 0) {
                     configuracio->viatge_actiu = viatge;
                     configuracio->te_viatge = 1;
+                    configuracio->fitxer_objecte[0] = '\0';
                     if (asprintf(&missatge, "Voyage %d accepted.\nDestination: %s.\n",
                               identificador, viatge.illa_desti) < 0) {
                         return -1;
                     }
                     resultat = escriureMissatge(missatge);
                     free(missatge);
+                    if (resultat != 0) {
+                        close(*fd_ithaca);
+                        *fd_ithaca = -1;
+                        return resultat;
+                    }
+                    /* El receptor nomes desa el nom despres de validar mida, MD5 i ACK. */
+                    if (rebreFitxer(*fd_ithaca, configuracio->ruta_carpeta, "OBJECT",
+                                    FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA,
+                                    configuracio->fitxer_objecte) != 0) {
+                        close(*fd_ithaca);
+                        *fd_ithaca = -1;
+                        return escriureMissatge("Error: no s'ha pogut rebre l'objecte.\n");
+                    }
                     return resultat;
                 }
                 free(viatge.nom_objecte);

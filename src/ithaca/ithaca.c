@@ -131,20 +131,85 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
 }
 
 /***********************************************
+ * @Finalitat: Transfereix l'objecte despres d'enviar ACCEPT OK, sense cap mutex.
+ * @Parametres: in: fd_navegant = socket del fil; ruta_objecte = fitxer del viatge.
+ *              in: nom_objecte, nom_odysseus = noms per als missatges.
+ * @Retorn: 0 amb ACK correcte; -1 si falla la transferencia.
+ ************************************************/
+int enviarObjecte(int fd_navegant, char *ruta_objecte, char *nom_objecte, char *nom_odysseus) {
+    char *missatge = NULL;
+    int longitud = 0;
+
+    longitud = asprintf(&missatge, ">>> Sending %s to %s...\n", nom_objecte, nom_odysseus);
+    if (longitud >= 0) {
+        write(1, missatge, longitud);
+        free(missatge);
+    }
+    if (enviarFitxer(fd_navegant, ruta_objecte, "OBJECT",
+                      FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA) != 0) {
+        write(2, "Error: no s'ha pogut transferir l'objecte.\n",
+              strlen("Error: no s'ha pogut transferir l'objecte.\n"));
+        return -1;
+    }
+    write(1, ">>> Object transferred successfully.\n",
+          strlen(">>> Object transferred successfully.\n"));
+    return 0;
+}
+
+/***********************************************
+ * @Finalitat: Assigna el viatge i copia les seves dades locals amb el mutex pres.
+ * @Parametres: in/out: viatge = entrada protegida pel mutex del cridador.
+ *              in: carpeta, nom_odysseus = carpeta origen i navegant.
+ *              out: resposta, nom_objecte = buffers de MIDA_DADES + 1 bytes.
+ *              out: ruta_objecte = buffer de MIDA_RUTA_FITXER bytes.
+ * @Retorn: Longitud de la resposta ACCEPT OK; 0 si no es pot assignar.
+ ************************************************/
+int assignarViatge(Viatge *viatge, char *carpeta, char *nom_odysseus,
+                   char *resposta, char *nom_objecte, char *ruta_objecte) {
+    int longitud_resposta = 0, longitud_ruta = 0;
+
+    if (viatge->disponible == 0) {
+        return 0;
+    }
+    /* La resposta copia ID, objecte, desti i recompensa al fil actual. */
+    longitud_resposta = snprintf(resposta, MIDA_DADES + 1, "OK&%d&%s&%s&%d",
+                                 viatge->identificador, viatge->nom_objecte,
+                                 viatge->illa_desti, viatge->recompensa);
+    if (longitud_resposta < 1 || longitud_resposta > MIDA_DADES) {
+        return 0;
+    }
+    strcpy(nom_objecte, viatge->nom_objecte);
+    /* File amb ruta ja es pot obrir; un nom sol depen de la carpeta. */
+    if (strchr(viatge->ruta_fitxer, '/') != NULL) {
+        longitud_ruta = snprintf(ruta_objecte, MIDA_RUTA_FITXER, "%s", viatge->ruta_fitxer);
+    } else {
+        longitud_ruta = snprintf(ruta_objecte, MIDA_RUTA_FITXER, "%s/%s",
+                                 carpeta, viatge->ruta_fitxer);
+    }
+    if (longitud_ruta < 0 || longitud_ruta >= MIDA_RUTA_FITXER) {
+        ruta_objecte[0] = '\0';
+    }
+    viatge->disponible = 0;
+    strcpy(viatge->odysseus_assignat, nom_odysseus);
+    return longitud_resposta;
+}
+
+/***********************************************
  *
- * @Finalitat: Assigna un viatge disponible al navegant que l'ha demanat.
+ * @Finalitat: Assigna un viatge disponible i envia el seu objecte al navegant.
  * @Parametres: in: fd_navegant = descriptor del navegant.
  *              in: peticio = trama ACCEPT rebuda.
  *              in/out: configuracio = viatges compartits d'Ithaca.
  *              in/out: mutex_viatges = mutex de disponibilitat i assignacio.
  *              in: nom_odysseus = nom identificat del navegant.
  *              out: viatge_actual = identificador del viatge acceptat.
- * @Retorn: Retorna 0 si envia la resposta i -1 si falla l'enviament.
+ * @Retorn: Retorna 0 si respon i transfereix, o -1 si falla la connexio o el fitxer.
  *
  ************************************************/
 int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odysseus, int *viatge_actual) {
     unsigned char trama[MIDA_TRAMA], flags = FLAG_RESPOSTA_ERROR;
-    char dades[MIDA_DADES + 1], *resposta = NULL;
+    char dades[MIDA_DADES + 1], resposta[MIDA_DADES + 1];
+    char ruta_objecte[MIDA_RUTA_FITXER], nom_objecte[MIDA_DADES + 1];
     char *missatge = NULL;
     int longitud = peticio[POSICIO_LONGITUD], identificador = 0;
     int acceptat = 0, longitud_resposta = 0;
@@ -171,15 +236,10 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
     }
     if (identificador > 0) {
         viatge = &configuracio->viatges[identificador - 1];
-        /* Aquests camps son immutables; la resposta queda en memoria local. */
-        longitud_resposta = asprintf(&resposta, "OK&%d&%s&%s&%d", viatge->identificador, viatge->nom_objecte, viatge->illa_desti, viatge->recompensa);
-        if (longitud_resposta < 0) {
-            return -1;
-        }
         pthread_mutex_lock(mutex_viatges);
-        if (viatge->disponible == 1 && longitud_resposta <= MIDA_DADES) {
-            viatge->disponible = 0;
-            strcpy(viatge->odysseus_assignat, nom_odysseus);
+        longitud_resposta = assignarViatge(viatge, configuracio->ruta_carpeta,
+                                            nom_odysseus, resposta, nom_objecte, ruta_objecte);
+        if (longitud_resposta > 0) {
             acceptat = 1;
         }
         pthread_mutex_unlock(mutex_viatges);
@@ -200,8 +260,13 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
     } else {
         crearTrama(trama, TIPUS_ACCEPT, flags, (unsigned char *)"ACCEPT invalid", strlen("ACCEPT invalid"));
     }
-    free(resposta);
-    return enviarTrama(fd_navegant, trama);
+    if (enviarTrama(fd_navegant, trama) != 0) {
+        return -1;
+    }
+    if (acceptat == 1) {
+        return enviarObjecte(fd_navegant, ruta_objecte, nom_objecte, nom_odysseus);
+    }
+    return 0;
 }
 
 /***********************************************

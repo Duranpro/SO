@@ -177,6 +177,7 @@ void alliberarConfiguracioOdisseu(ConfiguracioOdisseu *configuracio) {
     configuracio->viatge_actiu.nom_objecte = NULL;
     configuracio->viatge_actiu.illa_desti = NULL;
     configuracio->te_viatge = 0;
+    configuracio->fitxer_objecte[0] = '\0';
 }
 
 /***********************************************

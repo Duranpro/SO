@@ -12,6 +12,7 @@
 
 #define MIDA_NOM_PRODUCTE 100
 #define MIDA_NOM_ODYSSEUS 254
+#define MIDA_NOM_FITXER 254
 #define MAX_ILLES 6
 #define MIDA_NOM_ILLA 32
 #define MIDA_IP 16
@@ -71,6 +72,7 @@ typedef struct {
     int nombre_viatges_consultats;
     int te_viatge;
     Viatge viatge_actiu;
+    char fitxer_objecte[MIDA_NOM_FITXER];
 } ConfiguracioOdisseu;
 
 typedef struct {

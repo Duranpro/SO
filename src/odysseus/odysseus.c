@@ -67,6 +67,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    carregarEstatOdysseus(&configuracio);
+    signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, gestionarSigint);
     caracters_escrits = asprintf(&missatge,"Odysseus %s is ready to sail.\n", configuracio.nom);
     if (caracters_escrits >= 0) {
@@ -83,6 +85,7 @@ int main(int argc, char *argv[]) {
         close(fd_illa);
         fd_illa = -1;
     }
+    guardarEstatOdysseus(&configuracio);
     alliberarConfiguracioOdisseu(&configuracio);
     if (resultat != 0) {
         return 1;

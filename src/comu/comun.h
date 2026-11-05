@@ -29,14 +29,14 @@ int copiarText(char **desti, char *origen);
 int calcularMd5(char *ruta_fitxer, char *md5);
 int obtenirMidaFitxer(char *ruta_fitxer);
 int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
-                 unsigned char flags_capcalera, unsigned char flags_dades);
+                 unsigned char flags_capcalera, unsigned char flags_dades, int fd_finalitzacio);
 int rebreFitxer(int fd_socket, char *carpeta_desti, char *tipus_esperat,
                 unsigned char flags_capcalera, unsigned char flags_dades,
-                char *nom_fitxer_rebut);
+                char *nom_fitxer_rebut, int fd_finalitzacio);
 
 int rebreFitxerDesDeCapcalera(int fd_socket, unsigned char *trama_capcalera,
                               char *carpeta_desti, char *tipus_esperat,
                               unsigned char flags_capcalera, unsigned char flags_dades,
-                              char *nom_fitxer_rebut);
+                              char *nom_fitxer_rebut, int fd_finalitzacio);
 
 #endif

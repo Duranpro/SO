@@ -23,6 +23,7 @@
 #include "sphragis.h"
 
 int fd_avis_finalitzacio = -1;
+int fd_lectura_finalitzacio = -1;
 int fd_servidor = -1;
 
 typedef struct {
@@ -70,20 +71,20 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
     Viatge *viatge = NULL;
 
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO) {
-        return enviarNack(fd_navegant, "INVALID_FLAGS");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_FLAGS");
     }
     if (peticio[POSICIO_LONGITUD] != 0) {
-        return enviarNack(fd_navegant, "INVALID_LENGTH");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
     }
     if (viatge_actual != 0) {
         crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,(unsigned char *)"Ja tens un viatge actiu", 23);
-        return enviarTrama(fd_navegant, trama);
+        return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     }
     if (configuracio->nombre_viatges > 0) {
         indexs_disponibles = malloc(configuracio->nombre_viatges * sizeof(int));
         if (indexs_disponibles == NULL) {
             crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,(unsigned char *)"Sense memoria", 13);
-            return enviarTrama(fd_navegant, trama);
+            return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
         }
     }
     /* En tornar a llistar, fracassen els viatges anteriors del mateix navegant. */
@@ -107,7 +108,7 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
     if (total == 0) {
         free(indexs_disponibles);
         crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_OK, (unsigned char *)"0", 1);
-        return enviarTrama(fd_navegant, trama);
+        return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     }
     for (i = 0; i < total && resultat == 0; i++) {
         viatge = &configuracio->viatges[indexs_disponibles[i]];
@@ -122,10 +123,10 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
 
         if (resultat != 0) {
             crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_RESPOSTA_ERROR,(unsigned char *)"Viatge massa llarg", 18);
-            resultat = enviarTrama(fd_navegant, trama);
+            resultat = enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
             break;
         }
-        resultat = enviarTrama(fd_navegant, trama);
+        resultat = enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     }
     free(indexs_disponibles);
     return resultat;
@@ -137,7 +138,7 @@ int gestionarListVoyages(int fd_navegant, unsigned char *peticio,ConfiguracioIta
  *              in: nom_objecte, nom_odysseus = noms per als missatges.
  * @Retorn: 0 amb ACK correcte; -1 si falla la transferencia.
  ************************************************/
-int enviarObjecte(int fd_navegant, char *ruta_objecte, char *nom_objecte, char *nom_odysseus) {
+int enviarObjecte(int fd_navegant, char *ruta_objecte, char *nom_objecte, char *nom_odysseus, int fd_finalitzacio) {
     char *missatge = NULL;
     int longitud = 0;
 
@@ -147,7 +148,7 @@ int enviarObjecte(int fd_navegant, char *ruta_objecte, char *nom_objecte, char *
         free(missatge);
     }
     if (enviarFitxer(fd_navegant, ruta_objecte, "OBJECT",
-                      FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA) != 0) {
+                      FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA, fd_finalitzacio) != 0) {
         write(2, "Error: no s'ha pogut transferir l'objecte.\n",
               strlen("Error: no s'ha pogut transferir l'objecte.\n"));
         return -1;
@@ -207,7 +208,7 @@ int assignarViatge(Viatge *viatge, char *carpeta, char *nom_odysseus,
  * @Retorn: Retorna 0 si respon i transfereix, o -1 si falla la connexio o el fitxer.
  *
  ************************************************/
-int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odysseus, int *viatge_actual) {
+int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *configuracio, pthread_mutex_t *mutex_viatges, char *nom_odysseus, int *viatge_actual, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA], flags = FLAG_RESPOSTA_ERROR;
     char dades[MIDA_DADES + 1], resposta[MIDA_DADES + 1];
     char ruta_objecte[MIDA_RUTA_FITXER], nom_objecte[MIDA_DADES + 1];
@@ -217,19 +218,19 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
     Viatge *viatge = NULL;
 
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO) {
-        return enviarNack(fd_navegant, "INVALID_FLAGS");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_FLAGS");
     }
     if (longitud == 0 || longitud > MIDA_DADES) {
-        return enviarNack(fd_navegant, "INVALID_LENGTH");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
     }
     memcpy(dades, peticio + POSICIO_DADES, longitud);
     dades[longitud] = '\0';
     if ((int)strlen(dades) != longitud || esNumero(dades) == 0) {
-        return enviarNack(fd_navegant, "INVALID_DATA");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_DATA");
     }
     if (*viatge_actual != 0) {
         crearTrama(trama, TIPUS_ACCEPT, FLAG_RESPOSTA_ERROR,(unsigned char *)"Ja tens un viatge actiu", 23);
-        return enviarTrama(fd_navegant, trama);
+        return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     }
     identificador = atoi(dades);
     if (identificador < 1 || identificador > configuracio->nombre_viatges) {
@@ -261,11 +262,11 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
     } else {
         crearTrama(trama, TIPUS_ACCEPT, flags, (unsigned char *)"ACCEPT invalid", strlen("ACCEPT invalid"));
     }
-    if (enviarTrama(fd_navegant, trama) != 0) {
+    if (enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama) != 0) {
         return -1;
     }
     if (acceptat == 1) {
-        return enviarObjecte(fd_navegant, ruta_objecte, nom_objecte, nom_odysseus);
+        return enviarObjecte(fd_navegant, ruta_objecte, nom_objecte, nom_odysseus, fd_finalitzacio);
     }
     return 0;
 }
@@ -278,7 +279,7 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
  * @Retorn: 0 amb resposta correcta; -1 amb error per tancar la connexio.
  ************************************************/
 int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *configuracio,
-                    pthread_mutex_t *mutex_viatges, char *nom_odysseus, int *viatge_actual) {
+                    pthread_mutex_t *mutex_viatges, char *nom_odysseus, int *viatge_actual, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA];
     char dades[MIDA_DADES + 1], nom_objecte[MIDA_DADES + 1], desti[MIDA_NOM_ILLA];
     char fitxer_viatge[MIDA_RUTA_FITXER], ruta_rebuda[MIDA_RUTA_FITXER], nom_fitxer[MIDA_DADES + 1];
@@ -317,7 +318,7 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
         }
         strcpy(error, "TRANSFER_ERROR");
         valida = rebreFitxer(fd_navegant, configuracio->ruta_carpeta, "CLAIM",
-                              FLAG_PETICIO, FLAG_DADES_PETICIO, nom_fitxer) == 0;
+                              FLAG_PETICIO, FLAG_DADES_PETICIO, nom_fitxer, fd_finalitzacio) == 0;
     }
     if (valida == 1) {
         write(1, ">>> Object received correctly.\n", strlen(">>> Object received correctly.\n"));
@@ -356,10 +357,10 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
         }
         longitud = snprintf(dades, sizeof(dades), "OK&%d", recompensa);
         crearTrama(trama, TIPUS_CLAIM, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
-        return enviarTrama(fd_navegant, trama);
+        return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     }
     crearTrama(trama, TIPUS_CLAIM, FLAG_RESPOSTA_ERROR, (unsigned char *)error, strlen(error));
-    enviarTrama(fd_navegant, trama);
+    enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     return -1;
 }
 
@@ -378,13 +379,13 @@ int gestionarDesconnexio(int fd_navegant, unsigned char *peticio, char *nom_odys
     int longitud = 0;
 
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO) {
-        return enviarNack(fd_navegant, "INVALID_FLAGS");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_FLAGS");
     }
     if (peticio[POSICIO_LONGITUD] != 0) {
-        return enviarNack(fd_navegant, "INVALID_LENGTH");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
     }
     crearTrama(trama, TIPUS_DESCONNEXIO_ITHACA, FLAG_RESPOSTA_OK,(unsigned char *)"OK", 2);
-    if (enviarTrama(fd_navegant, trama) != 0) {
+    if (enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama) != 0) {
         return -1;
     }
     longitud = asprintf(&missatge, ">>> %s has left Ithaca. Fair winds!\n", nom_odysseus);
@@ -421,7 +422,7 @@ void *atendreOdysseus(void *arg) {
     }
     if (trama[POSICIO_TIPUS] != TIPUS_CONNECT_ITHACA) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
-            enviarNack(fd_navegant, "INVALID_TYPE");
+            enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_TYPE");
         }
         close(fd_navegant);
         finalitzarNavegant(control);
@@ -430,9 +431,9 @@ void *atendreOdysseus(void *arg) {
     longitud = trama[POSICIO_LONGITUD];
     if (trama[POSICIO_FLAGS] != FLAG_PETICIO ||longitud <= 0 || longitud > MIDA_DADES) {
         if (trama[POSICIO_FLAGS] != FLAG_PETICIO) {
-            enviarNack(fd_navegant, "INVALID_FLAGS");
+            enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_FLAGS");
         } else {
-            enviarNack(fd_navegant, "INVALID_LENGTH");
+            enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
         }
         close(fd_navegant);
         finalitzarNavegant(control);
@@ -441,12 +442,12 @@ void *atendreOdysseus(void *arg) {
     memcpy(nom_odysseus, trama + POSICIO_DADES, longitud);
     nom_odysseus[longitud] = '\0';
     if ((int)strlen(nom_odysseus) != longitud || strchr(nom_odysseus, '&') != NULL) {
-        enviarNack(fd_navegant, "INVALID_DATA");
+        enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_DATA");
         close(fd_navegant);
         finalitzarNavegant(control);
         return NULL;
     }
-    if (crearTrama(trama, TIPUS_CONNECT_ITHACA, FLAG_RESPOSTA_OK,(unsigned char *)"OK", 2) != 0 ||enviarTrama(fd_navegant, trama) != 0) {
+    if (crearTrama(trama, TIPUS_CONNECT_ITHACA, FLAG_RESPOSTA_OK,(unsigned char *)"OK", 2) != 0 ||enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama) != 0) {
         close(fd_navegant);
         finalitzarNavegant(control);
         return NULL;
@@ -475,13 +476,13 @@ void *atendreOdysseus(void *arg) {
         if (trama[POSICIO_TIPUS] == TIPUS_LIST_VOYAGES) {
             resultat = gestionarListVoyages(fd_navegant, trama, configuracio, mutex_viatges, nom_odysseus, viatge_actual);
         } else if (trama[POSICIO_TIPUS] == TIPUS_ACCEPT) {
-            resultat = gestionarAccept(fd_navegant, trama, configuracio, mutex_viatges, nom_odysseus, &viatge_actual);
+            resultat = gestionarAccept(fd_navegant, trama, configuracio, mutex_viatges, nom_odysseus, &viatge_actual, fd_finalitzacio);
         } else if (trama[POSICIO_TIPUS] == TIPUS_CLAIM) {
-            resultat = gestionarClaim(fd_navegant, trama, configuracio, mutex_viatges, nom_odysseus, &viatge_actual);
+            resultat = gestionarClaim(fd_navegant, trama, configuracio, mutex_viatges, nom_odysseus, &viatge_actual, fd_finalitzacio);
         } else if (trama[POSICIO_TIPUS] == TIPUS_DESCONNEXIO_ITHACA) {
             resultat = gestionarDesconnexio(fd_navegant, trama, nom_odysseus);
         } else {
-            resultat = enviarNack(fd_navegant, "INVALID_TYPE");
+            resultat = enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_TYPE");
         }
         if (resultat != 0) {
             break;
@@ -539,6 +540,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     fd_avis_finalitzacio = navegants.finalitzacio[1];
+    fd_lectura_finalitzacio = navegants.finalitzacio[0];
     signal(SIGINT, gestionarSigint);
     signal(SIGPIPE, SIG_IGN);
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);

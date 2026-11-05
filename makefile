@@ -8,7 +8,7 @@ build/odysseus/configuracio_odisseu.o: src/odysseus/configuracio_odisseu.c src/o
 	mkdir -p build/odysseus
 	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/odysseus/configuracio_odisseu.c -o build/odysseus/configuracio_odisseu.o
 
-build/odysseus/comandes.o: src/odysseus/comandes.c src/odysseus/comandes.h src/comu/comun.h src/comu/tipus.h src/comu/trames.h src/comu/xarxa.h lib/sphragis.h
+build/odysseus/comandes.o: src/odysseus/comandes.c src/odysseus/comandes.h src/comu/comun.h src/comu/tipus.h src/comu/trames.h src/comu/xarxa.h lib/sphragis.h src/odysseus/configuracio_odisseu.h
 	mkdir -p build/odysseus
 	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/odysseus/comandes.c -o build/odysseus/comandes.o
 

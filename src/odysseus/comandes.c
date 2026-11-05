@@ -194,6 +194,8 @@ int mostrarStatus(ConfiguracioOdisseu *configuracio) {
  ************************************************/
 int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantitat) {
     unsigned char trama[MIDA_TRAMA];
+    IllaConeguda mapa_anterior[MAX_ILLES];
+    int nombre_anterior = configuracio->num_illes_conegudes;
     char dades[MIDA_DADES + 1], *missatge = NULL;
     char *camps[7], *camp = NULL;
     int origen = buscarIllaConeguda(configuracio, configuracio->ubicacio_actual);
@@ -205,6 +207,7 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
     if (configuracio->diners < 50) {
         return escriureMissatge("Error: diners insuficients.\n");
     }
+    memcpy(mapa_anterior, configuracio->illes_conegudes, sizeof(mapa_anterior));
     crearTrama(trama, TIPUS_BUY_MAP, FLAG_PETICIO, (unsigned char *)"1", 1);
     resultat = enviarTrama(*fd_illa, trama);
     for (index = 1; index <= total && resultat == 0; index++) {
@@ -249,7 +252,6 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
             break;
         }
         if (index == 1 && strcmp(dades, "OK&50&0") == 0) {
-            configuracio->diners -= 50;
             break;
         }
         if (dades[0] == '&' || dades[longitud - 1] == '&' || teSeparadorsSeguits(dades) == 1) {
@@ -286,13 +288,12 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
             resultat = -1;
             break;
         }
-        if (index == 1) {
-            configuracio->diners -= 50;
-        }
         afegirConnexio(&configuracio->illes_conegudes[origen], &configuracio->illes_conegudes[desti]);
         afegirConnexio(&configuracio->illes_conegudes[desti], &configuracio->illes_conegudes[origen]);
     }
     if (resultat == 0) {
+        configuracio->diners -= 50;
+        guardarEstatOdysseus(configuracio);
         if (asprintf(&missatge, "Bought the map of %s for 50 gold.\nNew routes have been charted.\n",
                   configuracio->ubicacio_actual) < 0) {
             return -1;
@@ -301,6 +302,8 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
         free(missatge);
         return resultat;
     }
+    memcpy(configuracio->illes_conegudes, mapa_anterior, sizeof(mapa_anterior));
+    configuracio->num_illes_conegudes = nombre_anterior;
     close(*fd_illa);
     *fd_illa = -1;
     free(configuracio->mercat_actual);
@@ -660,6 +663,7 @@ int executarBuy(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte,
         }
         configuracio->diners -= import;
         configuracio->aliments[index_aliment].quantitat += quantitat;
+        guardarEstatOdysseus(configuracio);
         if (asprintf(&missatge, "Bought %d kg of %s for %d gold.\n", quantitat, producte, import) < 0) {
             return -1;
         }
@@ -704,6 +708,7 @@ int executarSell(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte
     if (resultat == 1 && import <= INT_MAX - configuracio->diners) {
         configuracio->aliments[index].quantitat -= quantitat;
         configuracio->diners += import;
+        guardarEstatOdysseus(configuracio);
         if (asprintf(&missatge, "Sold %d kg of %s for %d gold.\n", quantitat, producte, import) < 0) {
             return -1;
         }
@@ -1049,6 +1054,7 @@ int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_i
             configuracio->viatges_consultats = NULL;
             configuracio->nombre_viatges_consultats = 0;
             strcpy(configuracio->ubicacio_actual, "Ithaca");
+            guardarEstatOdysseus(configuracio);
             return escriureMissatge("Connected to Ithaca.\n");
         }
     }
@@ -1275,6 +1281,7 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
                     configuracio->te_viatge = 1;
                     configuracio->entrega_completada = 0;
                     configuracio->fitxer_objecte[0] = '\0';
+                    guardarEstatOdysseus(configuracio);
                     if (asprintf(&missatge, "Voyage %d accepted.\nDestination: %s.\n",
                               identificador, viatge.illa_desti) < 0) {
                         return -1;
@@ -1289,11 +1296,12 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
                     /* El receptor nomes desa el nom despres de validar mida, MD5 i ACK. */
                     if (rebreFitxer(*fd_ithaca, configuracio->ruta_carpeta, "OBJECT",
                                     FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA,
-                                    configuracio->fitxer_objecte) != 0) {
+                                    configuracio->fitxer_objecte, -1) != 0) {
                         close(*fd_ithaca);
                         *fd_ithaca = -1;
                         return escriureMissatge("Error: no s'ha pogut rebre l'objecte.\n");
                     }
+                    guardarEstatOdysseus(configuracio);
                     return resultat;
                 }
                 free(viatge.nom_objecte);
@@ -1432,6 +1440,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                              ara.tv_usec - inici_racio.tv_usec;
         while (temps_transcorregut >= 5000000L) {
             provisions = consumirProvisions(configuracio, 7);
+            guardarEstatOdysseus(configuracio);
             inici_racio.tv_sec += 5;
             temps_transcorregut -= 5000000L;
             if (asprintf(&missatge, ">>> The crew consumes another ration.\nProvisions remaining: %d kg\n", provisions) < 0) {
@@ -1509,6 +1518,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                 return -1;
             }
             strcpy(configuracio->ubicacio_actual, nom_illa);
+            guardarEstatOdysseus(configuracio);
             resultat = escriureMissatge(missatge);
             free(missatge);
             return resultat;
@@ -1609,6 +1619,7 @@ int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *d
                     }
                     if (strcmp(dades, "DOCKED") == 0) {
                         strcpy(configuracio->ubicacio_actual, desti->nom);
+                        guardarEstatOdysseus(configuracio);
                         if (asprintf(&missatge, "%s has granted access to the port.\n", desti->nom) < 0) {
                             return -1;
                         }
@@ -1664,6 +1675,12 @@ int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa
     char *missatge = NULL;
     int index_desti = -1, longitud = 0, resultat = 0;
 
+    if (*fd_ithaca < 0 && *fd_illa < 0 &&
+        strcasecmp(configuracio->ubicacio_actual, desti) == 0 &&
+        buscarIllaConeguda(configuracio, desti) >= 0) {
+        index_desti = buscarIllaConeguda(configuracio, desti);
+        return arribarIlla(configuracio, fd_illa, &configuracio->illes_conegudes[index_desti], finalitzar_programa) < 0 ? -1 : 0;
+    }
     if (strcasecmp(configuracio->ubicacio_actual, "Ithaca") == 0) {
         if (strcasecmp(desti, "Aeaea") == 0) {
             index_desti = 0;
@@ -1744,9 +1761,10 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     escriureMissatge(missatge);
     free(missatge);
     configuracio->entrega_completada = 0;
+    guardarEstatOdysseus(configuracio);
     if (crearTrama(trama, TIPUS_DELIVER, FLAG_PETICIO, (unsigned char *)dades, longitud) != 0 ||
         enviarTrama(*fd_illa, trama) != 0 ||
-        enviarFitxer(*fd_illa, ruta_objecte, "DELIVERY", FLAG_PETICIO, FLAG_DADES_PETICIO) != 0) {
+        enviarFitxer(*fd_illa, ruta_objecte, "DELIVERY", FLAG_PETICIO, FLAG_DADES_PETICIO, -1) != 0) {
         close(*fd_illa);
         *fd_illa = -1;
         return escriureMissatge("Error: no s'ha pogut transferir l'objecte a l'illa.\n");
@@ -1761,11 +1779,13 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     if (resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_CAPCALERA_FITXER) {
         /* El fitxer original es reemplaça: un error ja no garanteix un Object valid. */
         configuracio->fitxer_objecte[0] = '\0';
+        guardarEstatOdysseus(configuracio);
         resultat = rebreFitxerDesDeCapcalera(*fd_illa, trama, configuracio->ruta_carpeta,
-                                             "SIGNED", FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA, nom_fitxer);
+                                             "SIGNED", FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA, nom_fitxer, -1);
         if (resultat == 0) {
             strcpy(configuracio->fitxer_objecte, nom_fitxer);
             signat = 1;
+            guardarEstatOdysseus(configuracio);
             escriureMissatge("Stamped object received.\n");
             resultat = rebreTrama(*fd_illa, trama);
         }
@@ -1774,6 +1794,7 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
         trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK && trama[POSICIO_LONGITUD] == 2 &&
         trama[POSICIO_DADES] == 'O' && trama[POSICIO_DADES + 1] == 'K') {
         configuracio->entrega_completada = 1;
+        guardarEstatOdysseus(configuracio);
         if (asprintf(&missatge, "Delivery completed.\nThe mark of %s has been obtained.\n", configuracio->ubicacio_actual) < 0) {
             return -1;
         }
@@ -1814,7 +1835,7 @@ int executarClaim(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int fd_illa
     longitud = snprintf(dades, sizeof(dades), "%d", configuracio->viatge_actiu.identificador);
     if (crearTrama(trama, TIPUS_CLAIM, FLAG_PETICIO, (unsigned char *)dades, longitud) == 0 &&
         enviarTrama(*fd_ithaca, trama) == 0 &&
-        enviarFitxer(*fd_ithaca, ruta_objecte, "CLAIM", FLAG_PETICIO, FLAG_DADES_PETICIO) == 0) {
+        enviarFitxer(*fd_ithaca, ruta_objecte, "CLAIM", FLAG_PETICIO, FLAG_DADES_PETICIO, -1) == 0) {
         escriureMissatge("Object transferred correctly.\n");
         resultat = rebreTrama(*fd_ithaca, trama);
     }
@@ -1836,6 +1857,7 @@ int executarClaim(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int fd_illa
                 configuracio->te_viatge = 0;
                 configuracio->entrega_completada = 0;
                 configuracio->fitxer_objecte[0] = '\0';
+                guardarEstatOdysseus(configuracio);
                 if (longitud < 0) {
                     return -1;
                 }

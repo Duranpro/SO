@@ -24,6 +24,7 @@
 #include "trames.h"
 #include "xarxa.h"
 #include "sphragis.h"
+#include "configuracio_odisseu.h"
 
 #define MAX_PARAULES 4
 

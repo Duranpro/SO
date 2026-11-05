@@ -19,6 +19,10 @@
 #include "comun.h"
 #include "tipus.h"
 
+#define MAX_ALIMENTS_ESTAT 1024
+
+int guardarEstatOdysseus(ConfiguracioOdisseu *configuracio);
+int carregarEstatOdysseus(ConfiguracioOdisseu *configuracio);
 int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio);
 int carregarAliments(int fd, ConfiguracioOdisseu *configuracio);
 int carregarConfiguracioOdisseu(char *nom_fitxer,ConfiguracioOdisseu *configuracio);

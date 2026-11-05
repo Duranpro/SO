@@ -33,3 +33,25 @@ illa o Ithaca de màquina, cal actualitzar les IP corresponents als fitxers de
 configuració i mantenir-los iguals a totes les màquines.
 
 Finalitzar amb CTRL+C. Netejar els executables i objectes amb `make clean`.
+
+
+Abans de la Fase 3, crear les carpetes configurades i copiar les imatges oficials
+proporcionades a eStudy dins d'`objects/`, amb els noms de `data/voyages.dat`:
+
+```bash
+mkdir -p objects aeaea_files aeolia_files ismarus_files ogygia_files scheria_files thrinacia_files
+mkdir -p polyphemus_files telemachus_files laertes_files eumaeus_files mort_files
+```
+
+Odysseus desa `state.dat` dins de la seva carpeta. Conserva diners, aliments,
+missio, objecte associat, entrega, ubicacio i mapa conegut. Tambe pot llegir el
+format anterior de diners i aliments. No desa connexions ni el mercat temporal.
+
+Despres de reiniciar, `STATUS` mostra l'estat recuperat, pero cal reconnectar:
+`CONNECT ITHACA` per tornar a Ithaca, o `SAIL Scheria` si la ubicacio guardada
+es Scheria i es vol tornar a atracar alla. Aquesta arribada torna a respectar
+la capacitat i la FIFO. Per continuar des d'una altra illa guardada, fer primer
+`SAIL <nom_de_la_mateixa_illa>` i despres navegar per les connexions conegudes.
+
+El reinici d'Odysseus no restaura assignacions si tambe s'ha reiniciat Ithaca.
+Les transferencies interrompudes fallen; no hi ha represa automatica de blocs.

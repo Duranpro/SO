@@ -179,13 +179,13 @@ int obtenirMidaFitxer(char *ruta_fitxer) {
  * @Retorn: 0 si s'envia correctament i -1 si falla.
  ************************************************/
 static int respondreFitxer(int fd_socket, unsigned char tipus,
-                           unsigned char flags, char *text) {
+                           unsigned char flags, char *text, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA];
 
     if (crearTrama(trama, tipus, flags, (unsigned char *)text, strlen(text)) != 0) {
         return -1;
     }
-    return enviarTrama(fd_socket, trama);
+    return enviarTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, trama);
 }
 
 /***********************************************
@@ -194,12 +194,12 @@ static int respondreFitxer(int fd_socket, unsigned char tipus,
  *              in: text = contingut correcte de la resposta.
  * @Retorn: 0 amb resposta OK valida i -1 amb error o trama incorrecta.
  ************************************************/
-static int esperarRespostaFitxer(int fd_socket, unsigned char tipus, char *text) {
+static int esperarRespostaFitxer(int fd_socket, unsigned char tipus, char *text, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA];
     char resposta[MIDA_DADES + 1];
     int longitud = 0, rebuig_operacio = 0;
 
-    if (rebreTrama(fd_socket, trama) != 0) {
+    if (rebreTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, trama) != 0) {
         return -1;
     }
     /* DELIVER i CLAIM poden ser rebutjats mentre esperem READY. */
@@ -210,31 +210,31 @@ static int esperarRespostaFitxer(int fd_socket, unsigned char tipus, char *text)
     }
     if (trama[POSICIO_TIPUS] != tipus && rebuig_operacio == 0) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
-            enviarNack(fd_socket, "INVALID_TYPE");
+            enviarNackAmbFinalitzacio(fd_socket, fd_finalitzacio, "INVALID_TYPE");
         }
         return -1;
     }
     if (trama[POSICIO_FLAGS] != FLAG_RESPOSTA_OK &&
         trama[POSICIO_FLAGS] != FLAG_RESPOSTA_ERROR) {
-        enviarNack(fd_socket, "INVALID_FLAGS");
+        enviarNackAmbFinalitzacio(fd_socket, fd_finalitzacio, "INVALID_FLAGS");
         return -1;
     }
     longitud = trama[POSICIO_LONGITUD];
     if (longitud < 1 || longitud > MIDA_DADES) {
-        enviarNack(fd_socket, "INVALID_LENGTH");
+        enviarNackAmbFinalitzacio(fd_socket, fd_finalitzacio, "INVALID_LENGTH");
         return -1;
     }
     memcpy(resposta, trama + POSICIO_DADES, longitud);
     resposta[longitud] = '\0';
     if ((int)strlen(resposta) != longitud) {
-        enviarNack(fd_socket, "INVALID_DATA");
+        enviarNackAmbFinalitzacio(fd_socket, fd_finalitzacio, "INVALID_DATA");
         return -1;
     }
     if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_ERROR) {
         return -1;
     }
     if (strcmp(resposta, text) != 0) {
-        enviarNack(fd_socket, "INVALID_DATA");
+        enviarNackAmbFinalitzacio(fd_socket, fd_finalitzacio, "INVALID_DATA");
         return -1;
     }
     return 0;
@@ -248,7 +248,7 @@ static int esperarRespostaFitxer(int fd_socket, unsigned char tipus, char *text)
  * @Retorn: 0 amb ACK OK i -1 si falla. En error, el cridador tanca la connexio.
  ************************************************/
 int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
-                 unsigned char flags_capcalera, unsigned char flags_dades) {
+                 unsigned char flags_capcalera, unsigned char flags_dades, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA], dades[MIDA_DADES];
     char capcalera[MIDA_DADES + 1], md5[33], *nom_fitxer = NULL;
     int mida_fitxer = 0, longitud = 0, fd_fitxer = -1;
@@ -275,8 +275,8 @@ int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
     if (longitud < 1 || longitud > MIDA_DADES ||
         crearTrama(trama, TIPUS_CAPCALERA_FITXER, flags_capcalera,
                    (unsigned char *)capcalera, longitud) != 0 ||
-        enviarTrama(fd_socket, trama) != 0 ||
-        esperarRespostaFitxer(fd_socket, TIPUS_READY_FITXER, "READY") != 0) {
+        enviarTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, trama) != 0 ||
+        esperarRespostaFitxer(fd_socket, TIPUS_READY_FITXER, "READY", fd_finalitzacio) != 0) {
         return -1;
     }
     fd_fitxer = open(ruta_fitxer, O_RDONLY);
@@ -291,7 +291,7 @@ int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
         bytes_llegits = read(fd_fitxer, dades, longitud);
         if (bytes_llegits != longitud ||
             crearTrama(trama, TIPUS_DADES_FITXER, flags_dades, dades, bytes_llegits) != 0 ||
-            enviarTrama(fd_socket, trama) != 0) {
+            enviarTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, trama) != 0) {
             resultat = -1;
         } else {
             bytes_enviats += bytes_llegits;
@@ -301,7 +301,7 @@ int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
     if (resultat != 0) {
         return -1;
     }
-    return esperarRespostaFitxer(fd_socket, TIPUS_ACK_FITXER, "OK");
+    return esperarRespostaFitxer(fd_socket, TIPUS_ACK_FITXER, "OK", fd_finalitzacio);
 }
 
 /***********************************************
@@ -361,39 +361,39 @@ static int llegirCapcaleraFitxer(unsigned char *trama, char *tipus_esperat,
 static int prepararRecepcioFitxer(int fd_socket, unsigned char *trama, char *carpeta_desti,
                                  char *tipus_esperat, unsigned char flags_capcalera,
                                  char *ruta_desti, char *nom_fitxer,
-                                 int *mida_fitxer, char *md5_esperat) {
+                                 int *mida_fitxer, char *md5_esperat, int fd_finalitzacio) {
     int longitud = 0, fd_fitxer = -1;
     if (trama[POSICIO_TIPUS] != TIPUS_CAPCALERA_FITXER) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
-            enviarNack(fd_socket, "INVALID_TYPE");
+            enviarNackAmbFinalitzacio(fd_socket, fd_finalitzacio, "INVALID_TYPE");
         }
         return -1;
     }
     if (trama[POSICIO_FLAGS] != flags_capcalera) {
-        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_FLAGS");
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_FLAGS", fd_finalitzacio);
         return -1;
     }
     longitud = trama[POSICIO_LONGITUD];
     if (longitud < 1 || longitud > MIDA_DADES) {
-        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_LENGTH");
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_LENGTH", fd_finalitzacio);
         return -1;
     }
     if (llegirCapcaleraFitxer(trama, tipus_esperat, nom_fitxer,
                             mida_fitxer, md5_esperat) != 0) {
-        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_DATA");
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_DATA", fd_finalitzacio);
         return -1;
     }
     longitud = snprintf(ruta_desti, MIDA_RUTA_FITXER, "%s/%s", carpeta_desti, nom_fitxer);
     if (longitud < 1 || longitud >= MIDA_RUTA_FITXER) {
-        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_PATH");
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_PATH", fd_finalitzacio);
         return -1;
     }
     fd_fitxer = open(ruta_desti, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd_fitxer < 0) {
-        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "FILE_ERROR");
+        respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "FILE_ERROR", fd_finalitzacio);
         return -1;
     }
-    if (respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_OK, "READY") != 0) {
+    if (respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_OK, "READY", fd_finalitzacio) != 0) {
         close(fd_fitxer);
         return -1;
     }
@@ -408,27 +408,27 @@ static int prepararRecepcioFitxer(int fd_socket, unsigned char *trama, char *car
  *          permet al cridador respondre SIZE_ERROR sense inventar cap ACK.
  ************************************************/
 static int rebreDadesFitxer(int fd_socket, int fd_fitxer, int mida_fitxer,
-                           unsigned char flags_dades) {
+                           unsigned char flags_dades, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA];
     int bytes_rebuts = 0, longitud = 0, bytes_esperats = 0;
 
     while (bytes_rebuts < mida_fitxer) {
-        if (rebreTrama(fd_socket, trama) != 0) {
+        if (rebreTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, trama) != 0) {
             return -1;
         }
         if (trama[POSICIO_TIPUS] != TIPUS_DADES_FITXER) {
             if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
-                enviarNack(fd_socket, "INVALID_TYPE");
+                enviarNackAmbFinalitzacio(fd_socket, fd_finalitzacio, "INVALID_TYPE");
             }
             return -1;
         }
         if (trama[POSICIO_FLAGS] != flags_dades) {
-            enviarNack(fd_socket, "INVALID_FLAGS");
+            enviarNackAmbFinalitzacio(fd_socket, fd_finalitzacio, "INVALID_FLAGS");
             return -1;
         }
         longitud = trama[POSICIO_LONGITUD];
         if (longitud < 1 || longitud > MIDA_DADES) {
-            enviarNack(fd_socket, "INVALID_LENGTH");
+            enviarNackAmbFinalitzacio(fd_socket, fd_finalitzacio, "INVALID_LENGTH");
             return -1;
         }
         bytes_esperats = MIDA_DADES;
@@ -456,7 +456,7 @@ static int rebreDadesFitxer(int fd_socket, int fd_fitxer, int mida_fitxer,
 int rebreFitxerDesDeCapcalera(int fd_socket, unsigned char *trama_capcalera,
                               char *carpeta_desti, char *tipus_esperat,
                               unsigned char flags_capcalera, unsigned char flags_dades,
-                              char *nom_fitxer_rebut) {
+                              char *nom_fitxer_rebut, int fd_finalitzacio) {
     char ruta_desti[MIDA_RUTA_FITXER], nom_fitxer[MIDA_DADES + 1];
     char md5_esperat[33], md5_rebut[33];
     int fd_fitxer = -1, mida_fitxer = 0, bytes_rebuts = 0;
@@ -468,11 +468,11 @@ int rebreFitxerDesDeCapcalera(int fd_socket, unsigned char *trama_capcalera,
     nom_fitxer_rebut[0] = '\0';
     fd_fitxer = prepararRecepcioFitxer(fd_socket, trama_capcalera, carpeta_desti, tipus_esperat,
                                       flags_capcalera, ruta_desti, nom_fitxer,
-                                      &mida_fitxer, md5_esperat);
+                                      &mida_fitxer, md5_esperat, fd_finalitzacio);
     if (fd_fitxer < 0) {
         return -1;
     }
-    bytes_rebuts = rebreDadesFitxer(fd_socket, fd_fitxer, mida_fitxer, flags_dades);
+    bytes_rebuts = rebreDadesFitxer(fd_socket, fd_fitxer, mida_fitxer, flags_dades, fd_finalitzacio);
     if (close(fd_fitxer) < 0 && bytes_rebuts >= 0) {
         bytes_rebuts = 0;
     }
@@ -480,14 +480,14 @@ int rebreFitxerDesDeCapcalera(int fd_socket, unsigned char *trama_capcalera,
         return -1;
     }
     if (bytes_rebuts != mida_fitxer) {
-        respondreFitxer(fd_socket, TIPUS_ACK_FITXER, FLAG_RESPOSTA_ERROR, "SIZE_ERROR");
+        respondreFitxer(fd_socket, TIPUS_ACK_FITXER, FLAG_RESPOSTA_ERROR, "SIZE_ERROR", fd_finalitzacio);
         return -1;
     }
     if (calcularMd5(ruta_desti, md5_rebut) != 0 || strcmp(md5_rebut, md5_esperat) != 0) {
-        respondreFitxer(fd_socket, TIPUS_ACK_FITXER, FLAG_RESPOSTA_ERROR, "MD5_ERROR");
+        respondreFitxer(fd_socket, TIPUS_ACK_FITXER, FLAG_RESPOSTA_ERROR, "MD5_ERROR", fd_finalitzacio);
         return -1;
     }
-    if (respondreFitxer(fd_socket, TIPUS_ACK_FITXER, FLAG_RESPOSTA_OK, "OK") != 0) {
+    if (respondreFitxer(fd_socket, TIPUS_ACK_FITXER, FLAG_RESPOSTA_OK, "OK", fd_finalitzacio) != 0) {
         return -1;
     }
     strcpy(nom_fitxer_rebut, nom_fitxer);
@@ -503,7 +503,7 @@ int rebreFitxerDesDeCapcalera(int fd_socket, unsigned char *trama_capcalera,
  ************************************************/
 int rebreFitxer(int fd_socket, char *carpeta_desti, char *tipus_esperat,
                 unsigned char flags_capcalera, unsigned char flags_dades,
-                char *nom_fitxer_rebut) {
+                char *nom_fitxer_rebut, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA];
 
     if (fd_socket < 0 || carpeta_desti == NULL || carpeta_desti[0] == '\0' ||
@@ -511,9 +511,9 @@ int rebreFitxer(int fd_socket, char *carpeta_desti, char *tipus_esperat,
         return -1;
     }
     nom_fitxer_rebut[0] = '\0';
-    if (rebreTrama(fd_socket, trama) != 0) {
+    if (rebreTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, trama) != 0) {
         return -1;
     }
     return rebreFitxerDesDeCapcalera(fd_socket, trama, carpeta_desti, tipus_esperat,
-                                     flags_capcalera, flags_dades, nom_fitxer_rebut);
+                                     flags_capcalera, flags_dades, nom_fitxer_rebut, fd_finalitzacio);
 }

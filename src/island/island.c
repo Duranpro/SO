@@ -25,6 +25,7 @@
 #include "sphragis.h"
 
 int fd_avis_finalitzacio = -1;
+int fd_lectura_finalitzacio = -1;
 int fd_servidor = -1;
 
 typedef struct {
@@ -63,21 +64,21 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
     int i = 0, longitud = 0, resultat = 0, total = configuracio->nombre_rutes;
 
     if (peticio[POSICIO_LONGITUD] == 0 || peticio[POSICIO_LONGITUD] > MIDA_DADES) {
-        return enviarNack(fd_navegant, "INVALID_LENGTH");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
     }
     memcpy(dades, peticio + POSICIO_DADES, peticio[POSICIO_LONGITUD]);
     dades[peticio[POSICIO_LONGITUD]] = '\0';
     if ((int)strlen(dades) != peticio[POSICIO_LONGITUD] || esNumero(dades) == 0) {
-        return enviarNack(fd_navegant, "INVALID_DATA");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_DATA");
     }
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO || peticio[POSICIO_LONGITUD] != 1 || peticio[POSICIO_DADES] != '1') {
         error = "Quantitat de mapa invalida";
         crearTrama(trama, TIPUS_BUY_MAP, FLAG_RESPOSTA_ERROR, (unsigned char *)error, strlen(error));
-        return enviarTrama(fd_navegant, trama);
+        return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     }
     if (total == 0) {
         crearTrama(trama, TIPUS_BUY_MAP, FLAG_RESPOSTA_OK, (unsigned char *)"OK&50&0", 7);
-        resultat = enviarTrama(fd_navegant, trama);
+        resultat = enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     }
     for (i = 0; i < total && resultat == 0; i++) {
         longitud = asprintf(&ruta, "OK&50&%d&%d&%s&%s&%d", i + 1, total, configuracio->rutes[i].nom_illa, configuracio->rutes[i].ip, configuracio->rutes[i].port);
@@ -90,7 +91,7 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
         if (resultat != 0) {
             break;
         }
-        resultat = enviarTrama(fd_navegant, trama);
+        resultat = enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     }
     if (resultat == 0) {
         longitud = asprintf(&missatge, ">>> %s bought the local map.\n", nom);
@@ -117,13 +118,13 @@ int gestionarListMarket(int fd_navegant, unsigned char *peticio,ConfiguracioIlla
     int i = 0, total = configuracio->nombre_productes + 1, resultat = 0, longitud = 0;
 
     if (peticio[POSICIO_LONGITUD] != 0) {
-        return enviarNack(fd_navegant, "INVALID_LENGTH");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
     }
     if (total > 1) {
         copia_productes = malloc((total - 1) * sizeof(*copia_productes));
         if (copia_productes == NULL) {
             crearTrama(trama, TIPUS_LIST_MARKET, FLAG_RESPOSTA_ERROR,(unsigned char *)"Sense memoria", 13);
-            return enviarTrama(fd_navegant, trama);
+            return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
         } else {
             pthread_mutex_lock(mutex_stock);
             memcpy(copia_productes, configuracio->productes, (total - 1) * sizeof(*copia_productes));
@@ -143,7 +144,7 @@ int gestionarListMarket(int fd_navegant, unsigned char *peticio,ConfiguracioIlla
         resultat = crearTrama(trama, TIPUS_LIST_MARKET, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
         free(dades);
         if (resultat == 0) {
-            resultat = enviarTrama(fd_navegant, trama);
+            resultat = enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
         }
     }
     free(copia_productes);
@@ -165,7 +166,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
     int nova_quantitat = 0, import = 0, valida = 1, format_valid = 0;
 
     if (longitud == 0 || longitud > MIDA_DADES) {
-        return enviarNack(fd_navegant, "INVALID_LENGTH");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
     }
     error = "Peticio invalida";
     if (peticio[POSICIO_FLAGS] == FLAG_PETICIO && longitud > 0 && longitud <= MIDA_DADES) {
@@ -224,7 +225,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
         }
     }
     if (format_valid == 0) {
-        return enviarNack(fd_navegant, "INVALID_DATA");
+        return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_DATA");
     }
     if (error != NULL) {
         crearTrama(trama, tipus, FLAG_RESPOSTA_ERROR, (unsigned char *)error, strlen(error));
@@ -249,7 +250,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
         }
     }
 
-    return enviarTrama(fd_navegant, trama);
+    return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
 }
 
 /***********************************************
@@ -319,7 +320,7 @@ int notificarEntradaPort(VaixellPort *vaixell) {
     int longitud = 0;
 
     crearTrama(trama, TIPUS_ARRIBADA_ILLA, FLAG_RESPOSTA_OK, (unsigned char *)"DOCKED", 6);
-    if (enviarTrama(vaixell->fd_navegant, trama) != 0) {
+    if (enviarTramaAmbFinalitzacio(vaixell->fd_navegant, fd_lectura_finalitzacio, trama) != 0) {
         return -1;
     }
     longitud = asprintf(&missatge, ">>> DOCKED sent to %s; he may enter the port.\n", vaixell->nom);
@@ -420,7 +421,7 @@ void alliberarPlacaPort(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex
  * @Retorn: 0 amb DELIVER complet; -1 si rebutja o falla, per tancar la connexio.
  ************************************************/
 int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
-                     ConfiguracioIlla *configuracio, EstatPort *port, pthread_mutex_t *mutex_port) {
+                     ConfiguracioIlla *configuracio, EstatPort *port, pthread_mutex_t *mutex_port, int fd_finalitzacio) {
     unsigned char resposta[MIDA_TRAMA];
     char dades[MIDA_DADES + 1], nom_fitxer[MIDA_DADES + 1], ruta_fitxer[MIDA_RUTA_FITXER];
     char *objecte = NULL, *missatge = NULL;
@@ -429,7 +430,7 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
     if (peticio[POSICIO_TIPUS] != TIPUS_DELIVER || peticio[POSICIO_FLAGS] != FLAG_PETICIO ||
         longitud < 1 || longitud > MIDA_DADES) {
         crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"INVALID_REQUEST", 15);
-        enviarTrama(fd_navegant, resposta);
+        enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);
         return -1;
     }
     memcpy(dades, peticio + POSICIO_DADES, longitud);
@@ -443,7 +444,7 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
         (int)strlen(dades) + 1 + (int)strlen(objecte) != longitud ||
         esNumero(dades) == 0 || atoi(dades) < 1) {
         crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"INVALID_DATA", 12);
-        enviarTrama(fd_navegant, resposta);
+        enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);
         return -1;
     }
     pthread_mutex_lock(mutex_port);
@@ -455,7 +456,7 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
     pthread_mutex_unlock(mutex_port);
     if (atracat == 0) {
         crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"Cal estar atracat", 17);
-        enviarTrama(fd_navegant, resposta);
+        enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);
         return -1;
     }
     longitud = asprintf(&missatge, ">>> %s requests delivery of voyage %d.\n>>> Receiving %s...\n", nom, atoi(dades), objecte);
@@ -464,9 +465,9 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
         free(missatge);
     }
     if (rebreFitxer(fd_navegant, configuracio->ruta_carpeta, "DELIVERY",
-                    FLAG_PETICIO, FLAG_DADES_PETICIO, nom_fitxer) != 0) {
+                    FLAG_PETICIO, FLAG_DADES_PETICIO, nom_fitxer, fd_finalitzacio) != 0) {
         crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"DELIVERY_ERROR", 14);
-        enviarTrama(fd_navegant, resposta);
+        enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);
         return -1;
     }
     write(1, ">>> Object received correctly.\n", strlen(">>> Object received correctly.\n"));
@@ -479,7 +480,7 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
     if (longitud < 1 || longitud >= MIDA_RUTA_FITXER ||
         SPHRAGIS_sign_with_glyph(configuracio->nom, ruta_fitxer, ruta_fitxer) != SPHRAGIS_OK) {
         crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"STAMP_ERROR", 11);
-        enviarTrama(fd_navegant, resposta);
+        enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);
         return -1;
     }
     longitud = asprintf(&missatge, ">>> Object stamped successfully.\n>>> Sending stamped object to %s...\n", nom);
@@ -487,14 +488,14 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
         write(1, missatge, longitud);
         free(missatge);
     }
-    if (enviarFitxer(fd_navegant, ruta_fitxer, "SIGNED", FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA) != 0) {
+    if (enviarFitxer(fd_navegant, ruta_fitxer, "SIGNED", FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA, fd_finalitzacio) != 0) {
         crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"SIGNED_ERROR", 12);
-        enviarTrama(fd_navegant, resposta);
+        enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);
         return -1;
     }
     write(1, ">>> Transfer completed.\n", strlen(">>> Transfer completed.\n"));
     crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_OK, (unsigned char *)"OK", 2);
-    return enviarTrama(fd_navegant, resposta);
+    return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);
 }
 
 /***********************************************
@@ -527,7 +528,7 @@ void *atendreOdysseusIsland(void *arg) {
     }
     if (trama[POSICIO_TIPUS] != TIPUS_ARRIBADA_ILLA) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
-            enviarNack(fd_navegant, "INVALID_TYPE");
+            enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_TYPE");
         }
         close(fd_navegant);
         finalitzarNavegant(control);
@@ -536,9 +537,9 @@ void *atendreOdysseusIsland(void *arg) {
     longitud = trama[POSICIO_LONGITUD];
     if (trama[POSICIO_FLAGS] != FLAG_PETICIO || longitud <= 0 || longitud > MIDA_DADES) {
         if (trama[POSICIO_FLAGS] != FLAG_PETICIO) {
-            enviarNack(fd_navegant, "INVALID_FLAGS");
+            enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_FLAGS");
         } else {
-            enviarNack(fd_navegant, "INVALID_LENGTH");
+            enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
         }
         close(fd_navegant);
         finalitzarNavegant(control);
@@ -548,7 +549,7 @@ void *atendreOdysseusIsland(void *arg) {
     memcpy(vaixell.nom, trama + POSICIO_DADES, longitud);
     vaixell.nom[longitud] = '\0';
     if ((int)strlen(vaixell.nom) != longitud || strchr(vaixell.nom, '&') != NULL) {
-        enviarNack(fd_navegant, "INVALID_DATA");
+        enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_DATA");
         close(fd_navegant);
         finalitzarNavegant(control);
         return NULL;
@@ -577,7 +578,7 @@ void *atendreOdysseusIsland(void *arg) {
         flags = FLAG_RESPOSTA_ERROR;
     }
     crearTrama(trama, TIPUS_ARRIBADA_ILLA, flags, (unsigned char *)resposta, strlen(resposta));
-    resultat = enviarTrama(fd_navegant, trama);
+    resultat = enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     if (resultat == 0 && resultat_port > 0) {
         if (longitud >= 0) {
             write(1, missatge, longitud);
@@ -593,16 +594,16 @@ void *atendreOdysseusIsland(void *arg) {
                 break;
             }
             if (tipus == TIPUS_DELIVER) {
-                resultat = gestionarDeliver(fd_navegant, trama, vaixell.nom, configuracio, port, mutex_port);
+                resultat = gestionarDeliver(fd_navegant, trama, vaixell.nom, configuracio, port, mutex_port, fd_finalitzacio);
                 continue;
             }
             if (tipus == TIPUS_LIST_MARKET || tipus == TIPUS_BUY || tipus == TIPUS_SELL ||tipus == TIPUS_BUY_MAP || tipus == TIPUS_SORTIDA_ILLA) {
                 if (trama[POSICIO_FLAGS] != FLAG_PETICIO) {
-                    resultat = enviarNack(fd_navegant, "INVALID_FLAGS");
+                    resultat = enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_FLAGS");
                     continue;
                 }
                 if (trama[POSICIO_LONGITUD] > MIDA_DADES) {
-                    resultat = enviarNack(fd_navegant, "INVALID_LENGTH");
+                    resultat = enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
                     continue;
                 }
                 atracat = 0;
@@ -615,14 +616,14 @@ void *atendreOdysseusIsland(void *arg) {
                 pthread_mutex_unlock(mutex_port);
                 if (atracat == 0) {
                     crearTrama(trama, tipus, FLAG_RESPOSTA_ERROR,(unsigned char *)"Cal estar atracat", 17);
-                    resultat = enviarTrama(fd_navegant, trama);
+                    resultat = enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
                 } else if (tipus == TIPUS_LIST_MARKET) {
                     resultat = gestionarListMarket(fd_navegant, trama, configuracio, mutex_stock);
                 } else if (tipus == TIPUS_BUY_MAP) {
                     resultat = gestionarBuyMap(fd_navegant, trama, vaixell.nom, configuracio);
                 } else if (tipus == TIPUS_SORTIDA_ILLA) {
                     if (trama[POSICIO_LONGITUD] != 0) {
-                        resultat = enviarNack(fd_navegant, "INVALID_LENGTH");
+                        resultat = enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
                         continue;
                     } else {
                         alliberarPlacaPort(port, fd_navegant, mutex_port);
@@ -634,12 +635,12 @@ void *atendreOdysseusIsland(void *arg) {
                         missatge = NULL;
                         crearTrama(trama, tipus, FLAG_RESPOSTA_OK, (unsigned char *)"OK", 2);
                     }
-                    resultat = enviarTrama(fd_navegant, trama);
+                    resultat = enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
                 } else {
                     resultat = gestionarCompraVenda(fd_navegant, trama, vaixell.nom, configuracio, mutex_stock, ruta_stock);
                 }
             } else {
-                resultat = enviarNack(fd_navegant, "INVALID_TYPE");
+                resultat = enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_TYPE");
             }
         }
     }
@@ -707,6 +708,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     fd_avis_finalitzacio = navegants.finalitzacio[1];
+    fd_lectura_finalitzacio = navegants.finalitzacio[0];
     signal(SIGINT, gestionarSigint);
     signal(SIGPIPE, SIG_IGN); 
     fd_servidor = obrirServidor(configuracio.ip, configuracio.port);

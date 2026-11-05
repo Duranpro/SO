@@ -10,6 +10,8 @@
 #ifndef TRAMES_H
 #define TRAMES_H
 
+#include <sys/select.h>
+
 #define MIDA_TRAMA 256
 #define MIDA_DADES 253
 
@@ -46,5 +48,10 @@ int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, u
 int enviarTrama(int fd, unsigned char *trama);
 int rebreTrama(int fd, unsigned char *trama);
 int enviarNack(int fd, char *motiu);
+
+int enviarTramaAmbFinalitzacio(int fd, int fd_finalitzacio, unsigned char *trama);
+int rebreTramaAmbFinalitzacio(int fd, int fd_finalitzacio, unsigned char *trama);
+
+int enviarNackAmbFinalitzacio(int fd, int fd_finalitzacio, char *motiu);
 
 #endif

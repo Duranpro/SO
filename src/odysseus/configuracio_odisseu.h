@@ -23,6 +23,7 @@
 
 int guardarEstatOdysseus(ConfiguracioOdisseu *configuracio);
 int carregarEstatOdysseus(ConfiguracioOdisseu *configuracio);
+int descartarEstatOdysseus(ConfiguracioOdisseu *configuracio);
 int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio);
 int carregarAliments(int fd, ConfiguracioOdisseu *configuracio);
 int carregarConfiguracioOdisseu(char *nom_fitxer,ConfiguracioOdisseu *configuracio);

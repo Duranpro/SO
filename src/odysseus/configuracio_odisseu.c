@@ -416,6 +416,52 @@ int guardarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
 }
 
 /***********************************************
+ * @Finalitat: Deixa buit un fitxer propi que ja no ha de poder recuperar-se.
+ * @Parametres: in: configuracio = carpeta propia; nom_fitxer = nom sense ruta.
+ * @Retorn: 0 si queda buit o ja no existeix; -1 amb error.
+ ************************************************/
+static int buidarFitxerOdysseus(ConfiguracioOdisseu *configuracio, char *nom_fitxer) {
+    char ruta[MIDA_RUTA_FITXER];
+    int longitud = 0, fd = -1;
+
+    longitud = snprintf(ruta, sizeof(ruta), "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
+    if (longitud < 1 || longitud >= MIDA_RUTA_FITXER) {
+        return -1;
+    }
+    fd = open(ruta, O_WRONLY | O_TRUNC);
+    if (fd < 0) {
+        if (errno == ENOENT) {
+            return 0;
+        }
+        return -1;
+    }
+    return close(fd);
+}
+
+/***********************************************
+ * @Finalitat: Invalida l'objecte i l'estat desat despres de morir en WAIT.
+ * @Parametres: in: configuracio = carpeta i objecte del navegant que ha mort.
+ * @Retorn: 0 si es descarten; -1 si falla, informat per stderr.
+ ************************************************/
+int descartarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
+    int resultat = 0;
+
+    if (configuracio->fitxer_objecte[0] != '\0' &&
+        buidarFitxerOdysseus(configuracio, configuracio->fitxer_objecte) != 0) {
+        resultat = -1;
+    }
+    /* Cal invalidar tambe l'estat anterior, desat abans de l'ultima racio. */
+    if (buidarFitxerOdysseus(configuracio, "state.dat") != 0) {
+        resultat = -1;
+    }
+    if (resultat != 0) {
+        write(2, "Error: no s'ha pogut descartar l'estat o l'objecte del navegant mort.\n",
+              strlen("Error: no s'ha pogut descartar l'estat o l'objecte del navegant mort.\n"));
+    }
+    return resultat;
+}
+
+/***********************************************
  * @Finalitat: Recupera l estat logic nomes si tot el state.dat es valid.
  * @Parametres: in/out: configuracio = dades inicials, intactes si falla la carrega.
  * @Retorn: 0 amb estat carregat; -1 si falta, es invalid o no es pot llegir.

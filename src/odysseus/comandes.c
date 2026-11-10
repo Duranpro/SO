@@ -1440,7 +1440,11 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                              ara.tv_usec - inici_racio.tv_usec;
         while (temps_transcorregut >= 5000000L) {
             provisions = consumirProvisions(configuracio, 7);
-            guardarEstatOdysseus(configuracio);
+            if (provisions == 0) {
+                *finalitzar_programa = FINALITZACIO_MORT_AL_MAR;
+            } else {
+                guardarEstatOdysseus(configuracio);
+            }
             inici_racio.tv_sec += 5;
             temps_transcorregut -= 5000000L;
             if (asprintf(&missatge, ">>> The crew consumes another ration.\nProvisions remaining: %d kg\n", provisions) < 0) {
@@ -1454,7 +1458,6 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
             if (provisions == 0) {
                 close(*fd_illa);
                 *fd_illa = -1;
-                *finalitzar_programa = 1;
                 if (asprintf(&missatge, "The crew has run out of provisions.\nOdysseus %s has been lost at sea.\n",
                           configuracio->nom) < 0) {
                     return -1;

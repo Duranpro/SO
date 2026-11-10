@@ -28,7 +28,9 @@ int fd_illa = -1;
  *
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
-    finalitzar_programa = 1;
+    if (finalitzar_programa == 0) {
+        finalitzar_programa = 1;
+    }
     close(0);
     if (fd_ithaca >= 0) {
         close(fd_ithaca);
@@ -85,7 +87,13 @@ int main(int argc, char *argv[]) {
         close(fd_illa);
         fd_illa = -1;
     }
-    guardarEstatOdysseus(&configuracio);
+    if (finalitzar_programa == FINALITZACIO_MORT_AL_MAR) {
+        if (descartarEstatOdysseus(&configuracio) != 0) {
+            resultat = 1;
+        }
+    } else {
+        guardarEstatOdysseus(&configuracio);
+    }
     alliberarConfiguracioOdisseu(&configuracio);
     if (resultat != 0) {
         return 1;

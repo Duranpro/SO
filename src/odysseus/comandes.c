@@ -1529,7 +1529,9 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
             linia = llegirLinia(0);
             if (*finalitzar_programa != 0 || linia == NULL) {
                 free(linia);
-                *finalitzar_programa = 1;
+                if (*finalitzar_programa == 0) {
+                    *finalitzar_programa = 1;
+                }
                 break;
             }
             resultat_analisi = analitzarComanda(linia, &comanda);

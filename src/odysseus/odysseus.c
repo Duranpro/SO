@@ -29,7 +29,7 @@ int fd_illa = -1;
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
     if (finalitzar_programa == 0) {
-        finalitzar_programa = 1;
+        finalitzar_programa = FINALITZACIO_CTRL_C;
     }
     close(0);
     if (fd_ithaca >= 0) {
@@ -87,7 +87,11 @@ int main(int argc, char *argv[]) {
         close(fd_illa);
         fd_illa = -1;
     }
-    if (finalitzar_programa == FINALITZACIO_MORT_AL_MAR) {
+    /* Una entrega completada encara es pot cobrar, encara que no quedin recursos. */
+    if (finalitzar_programa == FINALITZACIO_MORT_AL_MAR ||
+        (finalitzar_programa == FINALITZACIO_CTRL_C && configuracio.diners == 0 &&
+         configuracio.te_viatge == 1 && configuracio.entrega_completada == 0 &&
+         consumirProvisions(&configuracio, 0) == 0)) {
         if (descartarEstatOdysseus(&configuracio) != 0) {
             resultat = 1;
         }

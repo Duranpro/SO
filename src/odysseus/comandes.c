@@ -1299,7 +1299,18 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
                                     configuracio->fitxer_objecte, -1) != 0) {
                         close(*fd_ithaca);
                         *fd_ithaca = -1;
-                        return escriureMissatge("Error: no s'ha pogut rebre l'objecte.\n");
+                        free(configuracio->viatge_actiu.nom_objecte);
+                        free(configuracio->viatge_actiu.illa_desti);
+                        free(configuracio->viatge_actiu.ruta_fitxer);
+                        memset(&configuracio->viatge_actiu, 0, sizeof(configuracio->viatge_actiu));
+                        configuracio->te_viatge = 0;
+                        configuracio->entrega_completada = 0;
+                        configuracio->fitxer_objecte[0] = '\0';
+                        /* En reconnectar i llistar, Ithaca marcara l'assignacio com a fracassada. */
+                        if (guardarEstatOdysseus(configuracio) != 0) {
+                            return -1;
+                        }
+                        return escriureMissatge("Error: no s'ha pogut rebre l'objecte. Reconnecta amb Ithaca i executa LIST VOYAGES.\n");
                     }
                     guardarEstatOdysseus(configuracio);
                     return resultat;
@@ -1680,6 +1691,9 @@ int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa
     char *missatge = NULL;
     int index_desti = -1, longitud = 0, resultat = 0;
 
+    if (configuracio->te_viatge == 1 && configuracio->fitxer_objecte[0] == '\0') {
+        return escriureMissatge("Error: no es pot navegar amb una missio activa sense l'objecte rebut.\n");
+    }
     if (*fd_ithaca < 0 && *fd_illa < 0 &&
         strcasecmp(configuracio->ubicacio_actual, desti) == 0 &&
         buscarIllaConeguda(configuracio, desti) >= 0) {

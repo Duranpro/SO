@@ -57,29 +57,25 @@ static int esperarSocket(int fd, int fd_finalitzacio, int escriure);
 
 /***********************************************
  *
- * @Finalitat: Rep una trama completa de 256 bytes.
+ * @Finalitat: Rep una trama amb un unic read de 256 bytes (Annex II).
  * @Parametres: in: fd = descriptor d'entrada; fd_finalitzacio = pipe o -1.
  *              out: trama = buffer de MIDA_TRAMA bytes.
  * @Retorn: Retorna 0 si rep la trama, 1 si arriba EOF abans de llegir dades
- *          i -1 si hi ha un error o la connexio es tanca amb la trama incompleta.
+ *          -1 amb lectura parcial, error o finalitzacio i -2 amb padding invalid.
  *
  ************************************************/
 static int llegirTrama(int fd, int fd_finalitzacio, unsigned char *trama) {
-    int total = 0, bytes_llegits = 0, i = 0;
+    int bytes_llegits = 0, i = 0;
 
-    /* REVISAR: preguntar si l'Annex II permet completar lectures parcials de TCP. */
-    while (total < MIDA_TRAMA) {
-        if (esperarSocket(fd, fd_finalitzacio, 0) < 0) {
-            return -1;
-        }
-        bytes_llegits = read(fd, trama + total, MIDA_TRAMA - total);
-        if (bytes_llegits < 0) {
-            return -1;
-        }
-        if (bytes_llegits == 0) {
-            return total == 0 ? 1 : -1;
-        }
-        total += bytes_llegits;
+    if (esperarSocket(fd, fd_finalitzacio, 0) < 0) {
+        return -1;
+    }
+    bytes_llegits = read(fd, trama, MIDA_TRAMA);
+    if (bytes_llegits == 0) {
+        return 1;
+    }
+    if (bytes_llegits != MIDA_TRAMA) {
+        return -1;
     }
     if (trama[POSICIO_LONGITUD] <= MIDA_DADES) {
         for (i = POSICIO_DADES + trama[POSICIO_LONGITUD]; i < MIDA_TRAMA; i++) {

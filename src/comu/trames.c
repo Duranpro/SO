@@ -53,7 +53,7 @@ int enviarTrama(int fd, unsigned char *trama) {
     return write(fd, trama, MIDA_TRAMA) == MIDA_TRAMA ? 0 : -1;
 }
 
-static int esperarSocket(int fd, int fd_finalitzacio, int escriure);
+int esperarSocket(int fd, int fd_finalitzacio, int escriure);
 
 /***********************************************
  *
@@ -64,7 +64,7 @@ static int esperarSocket(int fd, int fd_finalitzacio, int escriure);
  *          -1 amb lectura parcial, error o finalitzacio i -2 amb padding invalid.
  *
  ************************************************/
-static int llegirTrama(int fd, int fd_finalitzacio, unsigned char *trama) {
+int llegirTrama(int fd, int fd_finalitzacio, unsigned char *trama) {
     int bytes_llegits = 0, i = 0;
 
     if (esperarSocket(fd, fd_finalitzacio, 0) < 0) {
@@ -107,7 +107,7 @@ int enviarNack(int fd, char *motiu) {
  *              in: escriure = 1 per esperar escriptura, 0 per lectura.
  * @Retorn: 1 si es pot operar; -1 si cal finalitzar o falla select.
  ************************************************/
-static int esperarSocket(int fd, int fd_finalitzacio, int escriure) {
+int esperarSocket(int fd, int fd_finalitzacio, int escriure) {
     fd_set lectura, escriptura;
     int maxim = fd;
 

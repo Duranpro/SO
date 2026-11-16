@@ -227,7 +227,7 @@ int carregarConfiguracioOdisseu(char *nom_fitxer, ConfiguracioOdisseu *configura
  * @Parametres: in: fd = fitxer d'estat; configuracio = mapa actual.
  * @Retorn: 0 si es desa tot; -1 amb error.
  ************************************************/
-static int guardarMapaEstat(int fd, ConfiguracioOdisseu *configuracio) {
+int guardarMapaEstat(int fd, ConfiguracioOdisseu *configuracio) {
     int i = 0, j = 0;
     IllaConeguda *illa = NULL;
 
@@ -256,7 +256,7 @@ static int guardarMapaEstat(int fd, ConfiguracioOdisseu *configuracio) {
  * @Parametres: in: fd = fitxer d'estat; configuracio = estat logic actual.
  * @Retorn: 0 si es desa tot; -1 amb error.
  ************************************************/
-static int guardarEstatLogic(int fd, ConfiguracioOdisseu *configuracio) {
+int guardarEstatLogic(int fd, ConfiguracioOdisseu *configuracio) {
     char objecte[MIDA_NOM_FITXER] = {0}, desti[MIDA_NOM_ILLA] = {0};
 
     if (write(fd, &configuracio->te_viatge, sizeof(int)) != sizeof(int) ||
@@ -287,7 +287,7 @@ static int guardarEstatLogic(int fd, ConfiguracioOdisseu *configuracio) {
  * @Parametres: in: fd = fitxer d'estat; out: estat = dades encara no aplicades.
  * @Retorn: 0 amb mapa valid; -1 amb lectura incompleta o camps invalids.
  ************************************************/
-static int carregarMapaEstat(int fd, ConfiguracioOdisseu *estat) {
+int carregarMapaEstat(int fd, ConfiguracioOdisseu *estat) {
     int i = 0, j = 0;
     IllaConeguda *illa = NULL;
 
@@ -322,7 +322,7 @@ static int carregarMapaEstat(int fd, ConfiguracioOdisseu *estat) {
  * @Parametres: in: fd = fitxer d'estat; out: estat = missio temporal.
  * @Retorn: 0 amb missio valida; -1 amb error.
  ************************************************/
-static int carregarViatgeEstat(int fd, ConfiguracioOdisseu *estat) {
+int carregarViatgeEstat(int fd, ConfiguracioOdisseu *estat) {
     char objecte[MIDA_NOM_FITXER], desti[MIDA_NOM_ILLA];
 
     if (read(fd, &estat->viatge_actiu.identificador, sizeof(int)) != sizeof(int) ||
@@ -349,7 +349,7 @@ static int carregarViatgeEstat(int fd, ConfiguracioOdisseu *estat) {
  * @Parametres: in: fd = fitxer; in/out: estat = valors inicials i dades carregades.
  * @Retorn: 0 amb estat valid o format antic; -1 amb error.
  ************************************************/
-static int carregarEstatLogic(int fd, ConfiguracioOdisseu *estat) {
+int carregarEstatLogic(int fd, ConfiguracioOdisseu *estat) {
     int bytes_llegits = 0;
 
     bytes_llegits = read(fd, &estat->te_viatge, sizeof(int));
@@ -420,7 +420,7 @@ int guardarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
  * @Parametres: in: configuracio = carpeta propia; nom_fitxer = nom sense ruta.
  * @Retorn: 0 si queda buit o ja no existeix; -1 amb error.
  ************************************************/
-static int buidarFitxerOdysseus(ConfiguracioOdisseu *configuracio, char *nom_fitxer) {
+int buidarFitxerOdysseus(ConfiguracioOdisseu *configuracio, char *nom_fitxer) {
     char ruta[MIDA_RUTA_FITXER];
     int longitud = 0, fd = -1;
 

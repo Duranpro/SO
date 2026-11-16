@@ -1424,7 +1424,7 @@ int fd_avis_racio = -1;
  * @Parametres: in: senyal = senyal rebut.
  * @Retorn: ----.
  ************************************************/
-static void avisarRacio(int senyal __attribute__((unused))) {
+void avisarRacio(int senyal __attribute__((unused))) {
     char avis = 1;
     int error_anterior = errno;
 
@@ -1444,7 +1444,7 @@ static void avisarRacio(int senyal __attribute__((unused))) {
  * @Retorn: Retorna 0 si pot mostrar el resultat i -1 si falla la sortida.
  *
  ************************************************/
-static int esperarPortAmbAlarma(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa, int *finalitzar_programa, int fd_racio, int fd_maxim) {
+int esperarPortAmbAlarma(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa, int *finalitzar_programa, int fd_racio, int fd_maxim) {
     fd_set descriptors;
     Comanda comanda = {0};
     unsigned char trama[MIDA_TRAMA];

@@ -178,7 +178,7 @@ int obtenirMidaFitxer(char *ruta_fitxer) {
  *              in: text = resposta del protocol, sense dades binaries.
  * @Retorn: 0 si s'envia correctament i -1 si falla.
  ************************************************/
-static int respondreFitxer(int fd_socket, unsigned char tipus,
+int respondreFitxer(int fd_socket, unsigned char tipus,
                            unsigned char flags, char *text, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA];
 
@@ -194,7 +194,7 @@ static int respondreFitxer(int fd_socket, unsigned char tipus,
  *              in: text = contingut correcte de la resposta.
  * @Retorn: 0 amb resposta OK valida i -1 amb error o trama incorrecta.
  ************************************************/
-static int esperarRespostaFitxer(int fd_socket, unsigned char tipus, char *text, int fd_finalitzacio) {
+int esperarRespostaFitxer(int fd_socket, unsigned char tipus, char *text, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA];
     char resposta[MIDA_DADES + 1];
     int longitud = 0, rebuig_operacio = 0;
@@ -311,7 +311,7 @@ int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
  *              out: md5_esperat = buffer de 33 caracters.
  * @Retorn: 0 amb camps valids i -1 si el contingut no es correcte.
  ************************************************/
-static int llegirCapcaleraFitxer(unsigned char *trama, char *tipus_esperat,
+int llegirCapcaleraFitxer(unsigned char *trama, char *tipus_esperat,
                                 char *nom_fitxer, int *mida_fitxer, char *md5_esperat) {
     char dades[MIDA_DADES + 1], *camps[4];
     int longitud = trama[POSICIO_LONGITUD], i = 0, nombre_camps = 1;
@@ -358,7 +358,7 @@ static int llegirCapcaleraFitxer(unsigned char *trama, char *tipus_esperat,
  *              out: mida_fitxer = bytes esperats; md5_esperat = buffer de 33.
  * @Retorn: Descriptor del fitxer obert, o -1 si no pot iniciar la recepcio.
  ************************************************/
-static int prepararRecepcioFitxer(int fd_socket, unsigned char *trama, char *carpeta_desti,
+int prepararRecepcioFitxer(int fd_socket, unsigned char *trama, char *carpeta_desti,
                                  char *tipus_esperat, unsigned char flags_capcalera,
                                  char *ruta_desti, char *nom_fitxer,
                                  int *mida_fitxer, char *md5_esperat, int fd_finalitzacio) {
@@ -407,7 +407,7 @@ static int prepararRecepcioFitxer(int fd_socket, unsigned char *trama, char *car
  * @Retorn: Bytes escrits; -1 amb connexio o format invalid. Una mida curta
  *          permet al cridador respondre SIZE_ERROR sense inventar cap ACK.
  ************************************************/
-static int rebreDadesFitxer(int fd_socket, int fd_fitxer, int mida_fitxer,
+int rebreDadesFitxer(int fd_socket, int fd_fitxer, int mida_fitxer,
                            unsigned char flags_dades, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA];
     int bytes_rebuts = 0, longitud = 0, bytes_esperats = 0;

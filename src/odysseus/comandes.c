@@ -11,7 +11,8 @@
 
 #include "comandes.h"
 
-#include <sys/time.h>
+#include <errno.h>
+#include <signal.h>
 
 /***********************************************
  * @Finalitat: Detecta camps buits entre dos separadors consecutius.
@@ -1416,6 +1417,23 @@ int consumirProvisions(ConfiguracioOdisseu *configuracio, int quantitat) {
     return provisions;
 }
 
+int fd_avis_racio = -1;
+
+/***********************************************
+ * @Finalitat: Avisa el bucle de WAIT quan arriba SIGALRM.
+ * @Parametres: in: senyal = senyal rebut.
+ * @Retorn: ----.
+ ************************************************/
+static void avisarRacio(int senyal __attribute__((unused))) {
+    char avis = 1;
+    int error_anterior = errno;
+
+    if (fd_avis_racio >= 0) {
+        write(fd_avis_racio, &avis, 1);
+    }
+    errno = error_anterior;
+}
+
 /***********************************************
  *
  * @Finalitat: Espera DOCKED, aten MAP i STATUS i consumeix una racio cada cinc segons.
@@ -1426,38 +1444,38 @@ int consumirProvisions(ConfiguracioOdisseu *configuracio, int quantitat) {
  * @Retorn: Retorna 0 si pot mostrar el resultat i -1 si falla la sortida.
  *
  ************************************************/
-int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa, int *finalitzar_programa) {
+static int esperarPortAmbAlarma(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa, int *finalitzar_programa, int fd_racio, int fd_maxim) {
     fd_set descriptors;
-    struct timeval temps, inici_racio, ara;
     Comanda comanda = {0};
     unsigned char trama[MIDA_TRAMA];
     char *missatge = NULL;
     char *linia = NULL, resposta[7];
     int fd_espera = *fd_illa, resultat = 0, provisions = 0, resultat_analisi = 0;
-    long temps_transcorregut = 0, temps_restant = 0;
-
-    if (gettimeofday(&inici_racio, NULL) != 0) {
-        return -1;
-    }
-    if (escriureMissatge("$ ") != 0) {
-        return -1;
-    }
+    char avis;
 
     while (*finalitzar_programa == 0 && fd_espera >= 0) {
-        if (gettimeofday(&ara, NULL) != 0) {
-            return -1;
+        FD_ZERO(&descriptors);
+        FD_SET(fd_espera, &descriptors);
+        FD_SET(0, &descriptors);
+        FD_SET(fd_racio, &descriptors);
+        resultat = select(fd_maxim + 1, &descriptors, NULL, NULL, NULL);
+        if (*finalitzar_programa != 0) {
+            break;
         }
-        temps_transcorregut = (ara.tv_sec - inici_racio.tv_sec) * 1000000L +
-                             ara.tv_usec - inici_racio.tv_usec;
-        while (temps_transcorregut >= 5000000L) {
+        if (resultat < 0 && errno == EINTR) {
+            continue;
+        }
+        if (resultat > 0 && FD_ISSET(fd_racio, &descriptors)) {
+            if (read(fd_racio, &avis, 1) != 1) {
+                return -1;
+            }
             provisions = consumirProvisions(configuracio, 7);
             if (provisions == 0) {
                 *finalitzar_programa = FINALITZACIO_MORT_AL_MAR;
             } else {
+                alarm(5);
                 guardarEstatOdysseus(configuracio);
             }
-            inici_racio.tv_sec += 5;
-            temps_transcorregut -= 5000000L;
             if (asprintf(&missatge, ">>> The crew consumes another ration.\nProvisions remaining: %d kg\n", provisions) < 0) {
                 return -1;
             }
@@ -1477,26 +1495,7 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                 free(missatge);
                 return resultat;
             }
-        }
-        FD_ZERO(&descriptors);
-        FD_SET(fd_espera, &descriptors);
-        FD_SET(0, &descriptors);
-         temps_restant = 5000000L - temps_transcorregut;
-        temps.tv_sec = temps_restant / 1000000L;
-        temps.tv_usec = temps_restant % 1000000L;
-        resultat = select(fd_espera + 1, &descriptors, NULL, NULL, &temps);
-        if (*finalitzar_programa != 0) {
-            break;
-        }
-        if (resultat >= 0) {
-            if (gettimeofday(&ara, NULL) != 0) {
-                return -1;
-            }
-            temps_transcorregut = (ara.tv_sec - inici_racio.tv_sec) * 1000000L +
-                                 ara.tv_usec - inici_racio.tv_usec;
-            if (temps_transcorregut >= 5000000L) {
-                continue;
-            }
+            continue;
         }
         if (resultat > 0 && FD_ISSET(fd_espera, &descriptors)) {
             resultat = rebreTrama(fd_espera, trama);
@@ -1569,10 +1568,45 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
         close(*fd_illa);
         *fd_illa = -1;
     }
-    if (*finalitzar_programa != 0) {
-        return 0;
+    resultat = 0;
+    if (*finalitzar_programa == 0) {
+        resultat = escriureMissatge("Error: s'ha interromput l'espera davant del port.\n");
     }
-    return escriureMissatge("Error: s'ha interromput l'espera davant del port.\n");
+    return resultat;
+}
+
+/***********************************************
+ * @Finalitat: Prepara l'alarma i allibera la pipe en sortir de WAIT.
+ * @Parametres: in/out: configuracio, fd_illa, finalitzar_programa; in: nom_illa.
+ * @Retorn: El resultat de l'espera o -1 si falla la preparacio.
+ ************************************************/
+int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa, int *finalitzar_programa) {
+    int avis_racio[2], fd_maxim = *fd_illa, resultat;
+    void (*gestor_anterior)(int);
+
+    if (escriureMissatge("$ ") != 0 || pipe(avis_racio) < 0) {
+        return -1;
+    }
+    gestor_anterior = signal(SIGALRM, avisarRacio);
+    if (gestor_anterior == SIG_ERR) {
+        close(avis_racio[0]);
+        close(avis_racio[1]);
+        return -1;
+    }
+    fd_avis_racio = avis_racio[1];
+    if (avis_racio[0] > fd_maxim) {
+        fd_maxim = avis_racio[0];
+    }
+    alarm(5);
+
+    resultat = esperarPortAmbAlarma(configuracio, fd_illa, nom_illa, finalitzar_programa,
+                                     avis_racio[0], fd_maxim);
+    alarm(0);
+    fd_avis_racio = -1;
+    signal(SIGALRM, gestor_anterior);
+    close(avis_racio[0]);
+    close(avis_racio[1]);
+    return resultat;
 }
 
 /***********************************************

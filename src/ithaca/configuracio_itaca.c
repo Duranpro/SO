@@ -10,6 +10,7 @@
  ************************************************/
 
 #include "configuracio_itaca.h"
+#include "sphragis.h"
 
 /***********************************************
  *
@@ -105,6 +106,7 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     viatge->fracassat = 0;
     viatge->completat = 0;
     viatge->odysseus_assignat[0] = '\0';
+    viatge->md5_comprovant[0] = '\0';
     configuracio->nombre_viatges++;
 
     camp = strtok(linia, " ");
@@ -164,6 +166,63 @@ int carregarViatges(char *nom_fitxer, ConfiguracioItaca *configuracio) {
     }
 
     return -1;
+}
+
+/***********************************************
+ *
+ * @Finalitat: Prepara el comprovant esperat de cada viatge abans d'acceptar clients.
+ * @Parametres: in/out: configuracio = viatges i carpeta de recepcio d'Ithaca.
+ * @Retorn: 0 amb referencies preparades i -1 si falla el segellat o l'MD5.
+ *
+ ************************************************/
+int prepararComprovants(ConfiguracioItaca *configuracio) {
+    char ruta_comprovant[MIDA_RUTA_FITXER];
+    char *nom_fitxer = NULL, *origen = NULL, *desti = NULL;
+    int i = 0, longitud = 0;
+
+    /* La recepcio no pot escriure damunt dels originals de voyages.dat. */
+    for (i = 0; i < configuracio->nombre_viatges; i++) {
+        origen = configuracio->viatges[i].ruta_fitxer;
+        nom_fitxer = strrchr(origen, '/');
+        if (nom_fitxer == NULL) {
+            nom_fitxer = origen;
+        } else {
+            nom_fitxer++;
+        }
+        longitud = snprintf(ruta_comprovant, sizeof(ruta_comprovant), "%s/%s",
+                            configuracio->ruta_carpeta, nom_fitxer);
+        if (longitud <= 0 || longitud >= MIDA_RUTA_FITXER) {
+            return -1;
+        }
+        desti = ruta_comprovant;
+        while (origen[0] == '.' && origen[1] == '/') {
+            origen += 2;
+        }
+        while (desti[0] == '.' && desti[1] == '/') {
+            desti += 2;
+        }
+        if (strcmp(origen, desti) == 0) {
+            return -1;
+        }
+    }
+    for (i = 0; i < configuracio->nombre_viatges; i++) {
+        origen = configuracio->viatges[i].ruta_fitxer;
+        nom_fitxer = strrchr(origen, '/');
+        if (nom_fitxer == NULL) {
+            nom_fitxer = origen;
+        } else {
+            nom_fitxer++;
+        }
+        longitud = snprintf(ruta_comprovant, sizeof(ruta_comprovant), "%s/%s",
+                            configuracio->ruta_carpeta, nom_fitxer);
+        if (longitud <= 0 || longitud >= MIDA_RUTA_FITXER ||
+            SPHRAGIS_sign_with_glyph(configuracio->viatges[i].illa_desti,
+                                     origen, ruta_comprovant) != SPHRAGIS_OK ||
+            calcularMd5(ruta_comprovant, configuracio->viatges[i].md5_comprovant) != 0) {
+            return -1;
+        }
+    }
+    return 0;
 }
 
 /***********************************************

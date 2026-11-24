@@ -22,6 +22,7 @@
 int carregarConfiguracioItaca(char *nom_fitxer, ConfiguracioItaca *configuracio);
 int afegirViatge(char *linia, ConfiguracioItaca *configuracio);
 int carregarViatges(char *nom_fitxer, ConfiguracioItaca *configuracio);
+int prepararComprovants(ConfiguracioItaca *configuracio);
 void alliberarConfiguracioItaca(ConfiguracioItaca *configuracio);
 
 #endif

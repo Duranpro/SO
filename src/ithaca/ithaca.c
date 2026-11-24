@@ -284,6 +284,7 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
     char dades[MIDA_DADES + 1], nom_objecte[MIDA_DADES + 1], desti[MIDA_NOM_ILLA];
     char fitxer_viatge[MIDA_RUTA_FITXER], ruta_rebuda[MIDA_RUTA_FITXER], nom_fitxer[MIDA_DADES + 1];
     char error[MIDA_DADES + 1] = "INVALID_CLAIM", *esperat = NULL, *missatge = NULL;
+    char md5_esperat[33], md5_rebut[33];
     Viatge *viatge = NULL;
     int identificador = 0, recompensa = 0, valida = 0, longitud = peticio[POSICIO_LONGITUD];
 
@@ -301,6 +302,7 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
         if (viatge->disponible == 0 && viatge->fracassat == 0 && viatge->completat == 0 &&
             strcmp(viatge->odysseus_assignat, nom_odysseus) == 0) {
             recompensa = viatge->recompensa;
+            strcpy(md5_esperat, viatge->md5_comprovant);
             valida = 1;
             if (snprintf(nom_objecte, sizeof(nom_objecte), "%s", viatge->nom_objecte) >= (int)sizeof(nom_objecte) ||
                 snprintf(fitxer_viatge, sizeof(fitxer_viatge), "%s", viatge->ruta_fitxer) >= (int)sizeof(fitxer_viatge) ||
@@ -335,6 +337,11 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
         longitud = snprintf(ruta_rebuda, sizeof(ruta_rebuda), "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
         strcpy(error, "INVALID_GLYPH");
         valida = longitud > 0 && longitud < MIDA_RUTA_FITXER && SPHRAGIS_has_glyph(desti, ruta_rebuda) == 1;
+    }
+    if (valida == 1) {
+        strcpy(error, "INVALID_OBJECT");
+        valida = md5_esperat[0] != '\0' && calcularMd5(ruta_rebuda, md5_rebut) == 0 &&
+                 strcmp(md5_rebut, md5_esperat) == 0;
     }
     if (valida == 1) {
         /* Revalidem i actualitzem junts: nomes un CLAIM pot cobrar aquest viatge. */
@@ -522,6 +529,13 @@ int main(int argc, char *argv[]) {
     resultat = carregarConfiguracioItaca(argv[1], &configuracio);
     if (resultat == 0) {
         resultat = carregarViatges(argv[2], &configuracio);
+    }
+    if (resultat == 0) {
+        resultat = prepararComprovants(&configuracio);
+        if (resultat != 0) {
+            write(2, "Error: preparacio dels comprovants d'Ithaca. Comprova les imatges i la carpeta de recepcio.\n",
+                  strlen("Error: preparacio dels comprovants d'Ithaca. Comprova les imatges i la carpeta de recepcio.\n"));
+        }
     }
     if (resultat != 0) {
         alliberarConfiguracioItaca(&configuracio);

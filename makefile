@@ -16,7 +16,7 @@ build/ithaca/ithaca.o: src/ithaca/ithaca.c src/ithaca/configuracio_itaca.h src/c
 	mkdir -p build/ithaca
 	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/ithaca/ithaca.c -o build/ithaca/ithaca.o
 
-build/ithaca/configuracio_itaca.o: src/ithaca/configuracio_itaca.c src/ithaca/configuracio_itaca.h src/comu/comun.h src/comu/tipus.h
+build/ithaca/configuracio_itaca.o: src/ithaca/configuracio_itaca.c src/ithaca/configuracio_itaca.h src/comu/comun.h src/comu/tipus.h lib/sphragis.h
 	mkdir -p build/ithaca
 	gcc -Wall -Wextra -std=c99 -g -Isrc/comu -Isrc/ithaca -Isrc/island -Isrc/odysseus -Ilib -c src/ithaca/configuracio_itaca.c -o build/ithaca/configuracio_itaca.o
 

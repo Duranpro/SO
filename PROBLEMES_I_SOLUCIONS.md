@@ -13,7 +13,9 @@ Origen: [report del testing](output/fase3/REPORT.md), executat en Docker amb Deb
 - **Problema:** es comprovaven el nom del fitxer i el glif, però no que el contingut fos l'objecte de la missió assignada. Una transferència íntegra també pot transportar l'objecte equivocat.
 - **Codi identificat al testing:** `src/ithaca/ithaca.c`, funció `gestionarClaim`.
 - **Classificació:** problema funcional respecte als requisits.
-- **Estat de la solució:** pendent de documentar quan s'hagi corregit i verificat.
+- **Solució aplicada (24/11/2026):** Ithaca prepara el comprovant esperat amb SPHRAGIS abans d'acceptar clients i guarda l'MD5 a cada viatge. CLAIM compara l'MD5 rebut amb aquesta referencia, a mes del nom i el glif. Els originals continuen a objects/ i la carpeta configurada de recepcio es ithaca_files/.
+- **Verificació:** Aegis reanomenat rebutjat amb INVALID_OBJECT, original sense glif i glif equivocat rebutjats, comprovants correctes de Trident i Aegis cobrats una vegada. Les 24 referencies oficials coincideixen amb el segellat repetit i els originals es conserven. Recorregut real DELIVER, reinici d'Odysseus i CLAIM correcte. Preparacio amb carpeta absent, original absent o la configuracio antiga sobre objects/ falla de manera controlada; Valgrind sense errors en aquests camins.
+- **Estat de la solució:** corregit en els casos verificats. Continuen les interrupcions intermitents de transferencia anteriors a la validacio.
 
 ### P2. Es recupera una partida que s'hauria de donar per perduda
 

@@ -39,9 +39,15 @@ Abans de la Fase 3, crear les carpetes configurades i copiar les imatges oficial
 proporcionades a eStudy dins d'`objects/`, amb els noms de `data/voyages.dat`:
 
 ```bash
-mkdir -p objects aeaea_files aeolia_files ismarus_files ogygia_files scheria_files thrinacia_files
+mkdir -p objects ithaca_files aeaea_files aeolia_files ismarus_files ogygia_files scheria_files thrinacia_files
 mkdir -p polyphemus_files telemachus_files laertes_files eumaeus_files mort_files
 ```
+
+Ithaca conserva els originals a `objects/` i rep els comprovants a `ithaca_files/`.
+Abans d'obrir el servidor, prepara amb SPHRAGIS cada comprovant esperat a la
+seva ruta de recepcio i en conserva l'MD5 a memoria. CLAIM ha de coincidir amb
+aquesta referencia per poder cobrar. Cal tenir totes les imatges dels viatges
+i la carpeta de recepcio preparada abans d'iniciar Ithaca.
 
 Odysseus desa `state.dat` dins de la seva carpeta. Conserva diners, aliments,
 missio, objecte associat, entrega, ubicacio i mapa conegut. Tambe pot llegir el

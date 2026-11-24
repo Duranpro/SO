@@ -52,6 +52,7 @@ typedef struct {
     int fracassat;
     int completat;
     char odysseus_assignat[MIDA_NOM_ODYSSEUS];
+    char md5_comprovant[33];
 } Viatge;
 
 typedef struct {

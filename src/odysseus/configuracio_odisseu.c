@@ -269,7 +269,7 @@ int guardarEstatLogic(int fd, ConfiguracioOdisseu *configuracio) {
         return 0;
     }
     if (snprintf(objecte, sizeof(objecte), "%s", configuracio->viatge_actiu.nom_objecte) >= MIDA_NOM_FITXER ||
-        snprintf(desti, sizeof(desti), "%s", configuracio->viatge_actiu.illa_desti) >= MIDA_NOM_ILLA) {
+        snprintf(desti, sizeof(desti), "%s", configuracio->viatge_actiu.illa_desti) >= MIDA_NOM_ILLA) { //REVISAR
         return -1;
     }
     if (write(fd, &configuracio->viatge_actiu.identificador, sizeof(int)) != sizeof(int) ||

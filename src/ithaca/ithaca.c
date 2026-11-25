@@ -324,7 +324,7 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
     }
     if (valida == 1) {
         write(1, ">>> Object received correctly.\n", strlen(">>> Object received correctly.\n"));
-        esperat = strrchr(fitxer_viatge, '/');
+        esperat = strrchr(fitxer_viatge, '/'); //REVISAR)
         if (esperat == NULL) {
             esperat = fitxer_viatge;
         } else {

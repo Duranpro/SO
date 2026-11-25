@@ -26,7 +26,7 @@ int esNumero(char *text) {
         if (text[i] < '0' || text[i] > '9') {
             return 0;
         }
-        if (valor > (INT_MAX - (text[i] - '0')) / 10) {
+        if (valor > (INT_MAX - (text[i] - '0')) / 10) { //REVISAR INT_MAX
             return 0;
         }
         valor = valor * 10 + text[i] - '0';

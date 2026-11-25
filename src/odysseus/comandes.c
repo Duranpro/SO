@@ -1582,13 +1582,13 @@ int esperarPortAmbAlarma(ConfiguracioOdisseu *configuracio, int *fd_illa, char *
  ************************************************/
 int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa, int *finalitzar_programa) {
     int avis_racio[2], fd_maxim = *fd_illa, resultat;
-    void (*gestor_anterior)(int);
+    void (*gestor_anterior)(int); //REVISAR
 
     if (escriureMissatge("$ ") != 0 || pipe(avis_racio) < 0) {
         return -1;
     }
     gestor_anterior = signal(SIGALRM, avisarRacio);
-    if (gestor_anterior == SIG_ERR) {
+    if (gestor_anterior == SIG_ERR) { //REVISAR
         close(avis_racio[0]);
         close(avis_racio[1]);
         return -1;
@@ -1830,7 +1830,7 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     free(missatge);
     resultat = rebreTrama(*fd_illa, trama);
     if (resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_CAPCALERA_FITXER) {
-        /* El fitxer original es reemplaça: un error ja no garanteix un Object valid. */
+        /* El fitxer original es reemplaï¿½a: un error ja no garanteix un Object valid. */
         configuracio->fitxer_objecte[0] = '\0';
         guardarEstatOdysseus(configuracio);
         resultat = rebreFitxerDesDeCapcalera(*fd_illa, trama, configuracio->ruta_carpeta,

@@ -53,7 +53,7 @@ int enviarTrama(int fd, unsigned char *trama) {
     return write(fd, trama, MIDA_TRAMA) == MIDA_TRAMA ? 0 : -1;
 }
 
-int esperarSocket(int fd, int fd_finalitzacio, int escriure);
+int esperarSocket(int fd, int fd_finalitzacio, int escriure); //REVISAR
 
 /***********************************************
  *
@@ -168,7 +168,7 @@ int rebreTramaAmbFinalitzacio(int fd, int fd_finalitzacio, unsigned char *trama)
  * @Parametres: in: fd = socket; out: trama = buffer de 256 bytes.
  * @Retorn: 0 amb trama completa, 1 amb EOF i -1 amb error.
  ************************************************/
-int rebreTrama(int fd, unsigned char *trama) {
+int rebreTrama(int fd, unsigned char *trama) { //REVISAR
     return rebreTramaAmbFinalitzacio(fd, -1, trama);
 }
 

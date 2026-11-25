@@ -183,7 +183,7 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
     /* La recepcio no pot escriure damunt dels originals de voyages.dat. */
     for (i = 0; i < configuracio->nombre_viatges; i++) {
         origen = configuracio->viatges[i].ruta_fitxer;
-        nom_fitxer = strrchr(origen, '/');
+        nom_fitxer = strrchr(origen, '/'); //REVISAR
         if (nom_fitxer == NULL) {
             nom_fitxer = origen;
         } else {

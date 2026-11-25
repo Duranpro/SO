@@ -176,7 +176,7 @@ int carregarViatges(char *nom_fitxer, ConfiguracioItaca *configuracio) {
  *
  ************************************************/
 int prepararComprovants(ConfiguracioItaca *configuracio) {
-    char ruta_comprovant[MIDA_RUTA_FITXER];
+    char *ruta_comprovant = NULL;
     char *nom_fitxer = NULL, *origen = NULL, *desti = NULL;
     int i = 0, longitud = 0;
 
@@ -189,9 +189,13 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
         } else {
             nom_fitxer++;
         }
-        longitud = snprintf(ruta_comprovant, sizeof(ruta_comprovant), "%s/%s",
+        longitud = asprintf(&ruta_comprovant, "%s/%s",
                             configuracio->ruta_carpeta, nom_fitxer);
+        if (longitud < 0) {
+            return -1;
+        }
         if (longitud <= 0 || longitud >= MIDA_RUTA_FITXER) {
+            free(ruta_comprovant);
             return -1;
         }
         desti = ruta_comprovant;
@@ -202,8 +206,10 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
             desti += 2;
         }
         if (strcmp(origen, desti) == 0) {
+            free(ruta_comprovant);
             return -1;
         }
+        free(ruta_comprovant);
     }
     for (i = 0; i < configuracio->nombre_viatges; i++) {
         origen = configuracio->viatges[i].ruta_fitxer;
@@ -213,14 +219,19 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
         } else {
             nom_fitxer++;
         }
-        longitud = snprintf(ruta_comprovant, sizeof(ruta_comprovant), "%s/%s",
+        longitud = asprintf(&ruta_comprovant, "%s/%s",
                             configuracio->ruta_carpeta, nom_fitxer);
+        if (longitud < 0) {
+            return -1;
+        }
         if (longitud <= 0 || longitud >= MIDA_RUTA_FITXER ||
             SPHRAGIS_sign_with_glyph(configuracio->viatges[i].illa_desti,
                                      origen, ruta_comprovant) != SPHRAGIS_OK ||
             calcularMd5(ruta_comprovant, configuracio->viatges[i].md5_comprovant) != 0) {
+            free(ruta_comprovant);
             return -1;
         }
+        free(ruta_comprovant);
     }
     return 0;
 }

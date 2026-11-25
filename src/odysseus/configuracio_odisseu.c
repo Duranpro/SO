@@ -268,10 +268,12 @@ int guardarEstatLogic(int fd, ConfiguracioOdisseu *configuracio) {
     if (configuracio->te_viatge == 0) {
         return 0;
     }
-    if (snprintf(objecte, sizeof(objecte), "%s", configuracio->viatge_actiu.nom_objecte) >= MIDA_NOM_FITXER ||
-        snprintf(desti, sizeof(desti), "%s", configuracio->viatge_actiu.illa_desti) >= MIDA_NOM_ILLA) { //REVISAR
+    if (strlen(configuracio->viatge_actiu.nom_objecte) >= sizeof(objecte) ||
+        strlen(configuracio->viatge_actiu.illa_desti) >= sizeof(desti)) {
         return -1;
     }
+    strcpy(objecte, configuracio->viatge_actiu.nom_objecte);
+    strcpy(desti, configuracio->viatge_actiu.illa_desti);
     if (write(fd, &configuracio->viatge_actiu.identificador, sizeof(int)) != sizeof(int) ||
         write(fd, &configuracio->viatge_actiu.recompensa, sizeof(int)) != sizeof(int) ||
         write(fd, objecte, sizeof(objecte)) != sizeof(objecte) ||
@@ -376,10 +378,11 @@ int carregarEstatLogic(int fd, ConfiguracioOdisseu *estat) {
  * @Retorn: 0 si es desa tot; -1 amb error, que tambe s'informa per stderr.
  ************************************************/
 int guardarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
-    char ruta[MIDA_RUTA_FITXER], nom[MIDA_NOM_PRODUCTE];
+    char *ruta = NULL;
+    char nom[MIDA_NOM_PRODUCTE];
     int fd = -1, resultat = 0, i = 0, longitud = 0;
 
-    longitud = snprintf(ruta, sizeof(ruta), "%s/state.dat", configuracio->ruta_carpeta);
+    longitud = asprintf(&ruta, "%s/state.dat", configuracio->ruta_carpeta);
     if (longitud < 1 || longitud >= MIDA_RUTA_FITXER || configuracio->diners < 0 ||
         configuracio->nombre_aliments < 0 || configuracio->nombre_aliments > MAX_ALIMENTS_ESTAT) {
         resultat = -1;
@@ -389,17 +392,25 @@ int guardarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
             resultat = -1;
         }
     }
+    if (longitud >= 0) {
+        free(ruta);
+    }
     if (resultat == 0 && (write(fd, &configuracio->diners, sizeof(int)) != sizeof(int) ||
         write(fd, &configuracio->nombre_aliments, sizeof(int)) != sizeof(int))) {
         resultat = -1;
     }
     for (i = 0; i < configuracio->nombre_aliments && resultat == 0; i++) {
         memset(nom, 0, sizeof(nom));
-        longitud = snprintf(nom, sizeof(nom), "%s", configuracio->aliments[i].nom);
-        if (longitud < 1 || longitud >= MIDA_NOM_PRODUCTE || configuracio->aliments[i].quantitat < 0 ||
-            write(fd, nom, sizeof(nom)) != sizeof(nom) ||
-            write(fd, &configuracio->aliments[i].quantitat, sizeof(int)) != sizeof(int)) {
+        if (configuracio->aliments[i].nom[0] == '\0' ||
+            strlen(configuracio->aliments[i].nom) >= sizeof(nom) ||
+            configuracio->aliments[i].quantitat < 0) {
             resultat = -1;
+        } else {
+            strcpy(nom, configuracio->aliments[i].nom);
+            if (write(fd, nom, sizeof(nom)) != sizeof(nom) ||
+                write(fd, &configuracio->aliments[i].quantitat, sizeof(int)) != sizeof(int)) {
+                resultat = -1;
+            }
         }
     }
     if (resultat == 0) {
@@ -421,20 +432,27 @@ int guardarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
  * @Retorn: 0 si queda buit o ja no existeix; -1 amb error.
  ************************************************/
 int buidarFitxerOdysseus(ConfiguracioOdisseu *configuracio, char *nom_fitxer) {
-    char ruta[MIDA_RUTA_FITXER];
+    char *ruta = NULL;
     int longitud = 0, fd = -1;
 
-    longitud = snprintf(ruta, sizeof(ruta), "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
+    longitud = asprintf(&ruta, "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
+    if (longitud < 0) {
+        return -1;
+    }
     if (longitud < 1 || longitud >= MIDA_RUTA_FITXER) {
+        free(ruta);
         return -1;
     }
     fd = open(ruta, O_WRONLY | O_TRUNC);
     if (fd < 0) {
         if (errno == ENOENT) {
+            free(ruta);
             return 0;
         }
+        free(ruta);
         return -1;
     }
+    free(ruta);
     return close(fd);
 }
 
@@ -467,16 +485,22 @@ int descartarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
  * @Retorn: 0 amb estat carregat; -1 si falta, es invalid o no es pot llegir.
  ************************************************/
 int carregarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
-    char ruta[MIDA_RUTA_FITXER], nom[MIDA_NOM_PRODUCTE], sobrant = 0;
+    char *ruta = NULL;
+    char nom[MIDA_NOM_PRODUCTE], sobrant = 0;
     Aliment *aliments = NULL;
     ConfiguracioOdisseu estat = {0};
     int fd = -1, resultat = 0, diners = 0, nombre = 0, i = 0, total = 0, longitud = 0;
 
-    longitud = snprintf(ruta, sizeof(ruta), "%s/state.dat", configuracio->ruta_carpeta);
+    longitud = asprintf(&ruta, "%s/state.dat", configuracio->ruta_carpeta);
+    if (longitud < 0) {
+        return -1;
+    }
     if (longitud < 1 || longitud >= MIDA_RUTA_FITXER) {
+        free(ruta);
         return -1;
     }
     fd = open(ruta, O_RDONLY);
+    free(ruta);
     if (fd < 0) {
         return -1;
     }

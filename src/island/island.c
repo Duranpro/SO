@@ -423,9 +423,9 @@ void alliberarPlacaPort(EstatPort *port, int fd_navegant, pthread_mutex_t *mutex
 int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
                      ConfiguracioIlla *configuracio, EstatPort *port, pthread_mutex_t *mutex_port, int fd_finalitzacio) {
     unsigned char resposta[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], nom_fitxer[MIDA_DADES + 1], ruta_fitxer[MIDA_RUTA_FITXER];
+    char dades[MIDA_DADES + 1], nom_fitxer[MIDA_DADES + 1], *ruta_fitxer = NULL;
     char *objecte = NULL, *missatge = NULL;
-    int longitud = peticio[POSICIO_LONGITUD], i = 0, atracat = 0;
+    int longitud = peticio[POSICIO_LONGITUD], i = 0, atracat = 0, resultat = 0;
 
     if (peticio[POSICIO_TIPUS] != TIPUS_DELIVER || peticio[POSICIO_FLAGS] != FLAG_PETICIO ||
         longitud < 1 || longitud > MIDA_DADES) {
@@ -476,9 +476,13 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
         write(1, missatge, longitud);
         free(missatge);
     }
-    longitud = snprintf(ruta_fitxer, sizeof(ruta_fitxer), "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
+    longitud = asprintf(&ruta_fitxer, "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
+
     if (longitud < 1 || longitud >= MIDA_RUTA_FITXER ||
         SPHRAGIS_sign_with_glyph(configuracio->nom, ruta_fitxer, ruta_fitxer) != SPHRAGIS_OK) {
+        if (longitud >= 0) {
+            free(ruta_fitxer);
+        }
         crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"STAMP_ERROR", 11);
         enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);
         return -1;
@@ -488,7 +492,9 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
         write(1, missatge, longitud);
         free(missatge);
     }
-    if (enviarFitxer(fd_navegant, ruta_fitxer, "SIGNED", FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA, fd_finalitzacio) != 0) {
+    resultat = enviarFitxer(fd_navegant, ruta_fitxer, "SIGNED", FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA, fd_finalitzacio);
+    free(ruta_fitxer);
+    if (resultat != 0) {
         crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"SIGNED_ERROR", 12);
         enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);
         return -1;

@@ -1786,7 +1786,7 @@ int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa
  ************************************************/
 int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     unsigned char trama[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], ruta_objecte[MIDA_RUTA_FITXER];
+    char *dades = NULL, *ruta_objecte = NULL;
     char *missatge = NULL, nom_fitxer[MIDA_DADES + 1];
     int longitud = 0, resultat = 0, signat = 0;
 
@@ -1797,18 +1797,29 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     if (*fd_illa < 0 || strcasecmp(configuracio->ubicacio_actual, configuracio->viatge_actiu.illa_desti) != 0) {
         return escriureMissatge("Error: cal estar atracat a l'illa de desti.\n");
     }
-    longitud = snprintf(ruta_objecte, sizeof(ruta_objecte), "%s/%s",
+    longitud = asprintf(&ruta_objecte, "%s/%s",
                         configuracio->ruta_carpeta, configuracio->fitxer_objecte);
+
     if (longitud < 1 || longitud >= MIDA_RUTA_FITXER || obtenirMidaFitxer(ruta_objecte) <= 0) {
+        if (longitud >= 0) {
+            free(ruta_objecte);
+        }
         return escriureMissatge("Error: no es pot obrir l'Object rebut.\n");
     }
-    longitud = snprintf(dades, sizeof(dades), "%d&%s",
+    longitud = asprintf(&dades, "%d&%s",
                         configuracio->viatge_actiu.identificador, configuracio->viatge_actiu.nom_objecte);
+
     if (longitud < 1 || longitud > MIDA_DADES) {
+        free(ruta_objecte);
+        if (longitud >= 0) {
+            free(dades);
+        }
         return escriureMissatge("Error: dades DELIVER massa llargues.\n");
     }
     if (asprintf(&missatge, "Delivering %s to %s...\n", configuracio->viatge_actiu.nom_objecte,
                  configuracio->ubicacio_actual) < 0) {
+        free(ruta_objecte);
+        free(dades);
         return -1;
     }
     escriureMissatge(missatge);
@@ -1818,10 +1829,14 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     if (crearTrama(trama, TIPUS_DELIVER, FLAG_PETICIO, (unsigned char *)dades, longitud) != 0 ||
         enviarTrama(*fd_illa, trama) != 0 ||
         enviarFitxer(*fd_illa, ruta_objecte, "DELIVERY", FLAG_PETICIO, FLAG_DADES_PETICIO, -1) != 0) {
+        free(ruta_objecte);
+        free(dades);
         close(*fd_illa);
         *fd_illa = -1;
         return escriureMissatge("Error: no s'ha pogut transferir l'objecte a l'illa.\n");
     }
+    free(ruta_objecte);
+    free(dades);
     escriureMissatge("Object transferred correctly.\n");
     if (asprintf(&missatge, "%s is stamping the object...\n", configuracio->ubicacio_actual) < 0) {
         return -1;
@@ -1868,30 +1883,43 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
  ************************************************/
 int executarClaim(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int fd_illa) {
     unsigned char trama[MIDA_TRAMA];
-    char dades[MIDA_DADES + 1], ruta_objecte[MIDA_RUTA_FITXER], *missatge = NULL;
+    char dades[MIDA_DADES + 1], *ruta_objecte = NULL, *missatge = NULL;
     int longitud = 0, resultat = -1, recompensa = 0;
 
     if (*fd_ithaca < 0 || fd_illa >= 0 || strcasecmp(configuracio->ubicacio_actual, "Ithaca") != 0 ||
         configuracio->te_viatge == 0 || configuracio->fitxer_objecte[0] == '\0' || configuracio->entrega_completada != 1) {
         return escriureMissatge("Error: cal tornar a Ithaca amb un DELIVER complet.\n");
     }
-    longitud = snprintf(ruta_objecte, sizeof(ruta_objecte), "%s/%s", configuracio->ruta_carpeta, configuracio->fitxer_objecte);
+    longitud = asprintf(&ruta_objecte, "%s/%s", configuracio->ruta_carpeta, configuracio->fitxer_objecte);
+
     if (longitud < 1 || longitud >= MIDA_RUTA_FITXER || obtenirMidaFitxer(ruta_objecte) <= 0) {
+        if (longitud >= 0) {
+            free(ruta_objecte);
+        }
         return escriureMissatge("Error: no es pot obrir l'Object segellat.\n");
     }
     longitud = asprintf(&missatge, "Presenting the stamped %s...\n", configuracio->viatge_actiu.nom_objecte);
     if (longitud < 0) {
+        free(ruta_objecte);
         return -1;
     }
     escriureMissatge(missatge);
     free(missatge);
-    longitud = snprintf(dades, sizeof(dades), "%d", configuracio->viatge_actiu.identificador);
-    if (crearTrama(trama, TIPUS_CLAIM, FLAG_PETICIO, (unsigned char *)dades, longitud) == 0 &&
-        enviarTrama(*fd_ithaca, trama) == 0 &&
+    longitud = asprintf(&missatge, "%d", configuracio->viatge_actiu.identificador);
+    if (longitud < 0) {
+        free(ruta_objecte);
+        return -1;
+    }
+    resultat = crearTrama(trama, TIPUS_CLAIM, FLAG_PETICIO, (unsigned char *)missatge, longitud);
+    free(missatge);
+    if (resultat == 0 && enviarTrama(*fd_ithaca, trama) == 0 &&
         enviarFitxer(*fd_ithaca, ruta_objecte, "CLAIM", FLAG_PETICIO, FLAG_DADES_PETICIO, -1) == 0) {
         escriureMissatge("Object transferred correctly.\n");
         resultat = rebreTrama(*fd_ithaca, trama);
+    } else {
+        resultat = -1;
     }
+    free(ruta_objecte);
     if (resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_CLAIM && trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK &&
         trama[POSICIO_LONGITUD] >= 4 && trama[POSICIO_LONGITUD] <= MIDA_DADES) {
         longitud = trama[POSICIO_LONGITUD];

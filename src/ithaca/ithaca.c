@@ -168,27 +168,48 @@ int enviarObjecte(int fd_navegant, char *ruta_objecte, char *nom_objecte, char *
  ************************************************/
 int assignarViatge(Viatge *viatge, char *carpeta, char *nom_odysseus,
                    char *resposta, char *nom_objecte, char *ruta_objecte) {
+    char *text_formatat = NULL;
     int longitud_resposta = 0, longitud_ruta = 0;
 
     if (viatge->disponible == 0) {
         return 0;
     }
     /* La resposta copia ID, objecte, desti i recompensa al fil actual. */
-    longitud_resposta = snprintf(resposta, MIDA_DADES + 1, "OK&%d&%s&%s&%d",
+    longitud_resposta = asprintf(&text_formatat, "OK&%d&%s&%s&%d",
                                  viatge->identificador, viatge->nom_objecte,
                                  viatge->illa_desti, viatge->recompensa);
+    if (longitud_resposta >= 0) {
+        if (longitud_resposta < MIDA_DADES + 1) {
+            strcpy(resposta, text_formatat);
+        }
+        free(text_formatat);
+    }
     if (longitud_resposta < 1 || longitud_resposta > MIDA_DADES) {
         return 0;
     }
     strcpy(nom_objecte, viatge->nom_objecte);
     /* File amb ruta ja es pot obrir; un nom sol depen de la carpeta. */
     if (strchr(viatge->ruta_fitxer, '/') != NULL) {
-        longitud_ruta = snprintf(ruta_objecte, MIDA_RUTA_FITXER, "%s", viatge->ruta_fitxer);
+        if (strlen(viatge->ruta_fitxer) < MIDA_RUTA_FITXER) {
+            strcpy(ruta_objecte, viatge->ruta_fitxer);
+            longitud_ruta = strlen(viatge->ruta_fitxer);
+        } else {
+            longitud_ruta = MIDA_RUTA_FITXER;
+        }
     } else {
-        longitud_ruta = snprintf(ruta_objecte, MIDA_RUTA_FITXER, "%s/%s",
+        longitud_ruta = asprintf(&text_formatat, "%s/%s",
                                  carpeta, viatge->ruta_fitxer);
+        if (longitud_ruta >= 0) {
+            if (longitud_ruta < MIDA_RUTA_FITXER) {
+                strcpy(ruta_objecte, text_formatat);
+            }
+            free(text_formatat);
+        }
     }
-    if (longitud_ruta < 0 || longitud_ruta >= MIDA_RUTA_FITXER) {
+    if (longitud_ruta < 0) {
+        return 0;
+    }
+    if (longitud_ruta >= MIDA_RUTA_FITXER) {
         ruta_objecte[0] = '\0';
     }
     viatge->disponible = 0;
@@ -280,13 +301,15 @@ int gestionarAccept(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *
  ************************************************/
 int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *configuracio,
                     pthread_mutex_t *mutex_viatges, char *nom_odysseus, int *viatge_actual, int fd_finalitzacio) {
+    char *resposta = NULL;
     unsigned char trama[MIDA_TRAMA];
     char dades[MIDA_DADES + 1], nom_objecte[MIDA_DADES + 1], desti[MIDA_NOM_ILLA];
-    char fitxer_viatge[MIDA_RUTA_FITXER], ruta_rebuda[MIDA_RUTA_FITXER], nom_fitxer[MIDA_DADES + 1];
+    char fitxer_viatge[MIDA_RUTA_FITXER], *ruta_rebuda = NULL, nom_fitxer[MIDA_DADES + 1];
     char error[MIDA_DADES + 1] = "INVALID_CLAIM", *esperat = NULL, *missatge = NULL;
     char md5_esperat[33], md5_rebut[33];
     Viatge *viatge = NULL;
     int identificador = 0, recompensa = 0, valida = 0, longitud = peticio[POSICIO_LONGITUD];
+    int longitud_resposta = 0;
 
     if (peticio[POSICIO_TIPUS] == TIPUS_CLAIM && peticio[POSICIO_FLAGS] == FLAG_PETICIO &&
         longitud > 0 && longitud <= MIDA_DADES) {
@@ -304,10 +327,14 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
             recompensa = viatge->recompensa;
             strcpy(md5_esperat, viatge->md5_comprovant);
             valida = 1;
-            if (snprintf(nom_objecte, sizeof(nom_objecte), "%s", viatge->nom_objecte) >= (int)sizeof(nom_objecte) ||
-                snprintf(fitxer_viatge, sizeof(fitxer_viatge), "%s", viatge->ruta_fitxer) >= (int)sizeof(fitxer_viatge) ||
-                snprintf(desti, sizeof(desti), "%s", viatge->illa_desti) >= (int)sizeof(desti)) {
+            if (strlen(viatge->nom_objecte) >= sizeof(nom_objecte) ||
+                strlen(viatge->ruta_fitxer) >= sizeof(fitxer_viatge) ||
+                strlen(viatge->illa_desti) >= sizeof(desti)) {
                 valida = 0;
+            } else {
+                strcpy(nom_objecte, viatge->nom_objecte);
+                strcpy(fitxer_viatge, viatge->ruta_fitxer);
+                strcpy(desti, viatge->illa_desti);
             }
         }
     }
@@ -334,14 +361,31 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
         valida = strcmp(esperat, nom_fitxer) == 0;
     }
     if (valida == 1) {
-        longitud = snprintf(ruta_rebuda, sizeof(ruta_rebuda), "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
+        longitud = asprintf(&ruta_rebuda, "%s/%s", configuracio->ruta_carpeta, nom_fitxer);
         strcpy(error, "INVALID_GLYPH");
-        valida = longitud > 0 && longitud < MIDA_RUTA_FITXER && SPHRAGIS_has_glyph(desti, ruta_rebuda) == 1;
+        valida = longitud > 0 && longitud < MIDA_RUTA_FITXER &&
+                 SPHRAGIS_has_glyph(desti, ruta_rebuda) == 1;
+        if (valida == 1) {
+            strcpy(error, "INVALID_OBJECT");
+            valida = md5_esperat[0] != '\0' && calcularMd5(ruta_rebuda, md5_rebut) == 0 &&
+                     strcmp(md5_rebut, md5_esperat) == 0;
+        }
+        if (longitud >= 0) {
+            free(ruta_rebuda);
+        }
     }
     if (valida == 1) {
-        strcpy(error, "INVALID_OBJECT");
-        valida = md5_esperat[0] != '\0' && calcularMd5(ruta_rebuda, md5_rebut) == 0 &&
-                 strcmp(md5_rebut, md5_esperat) == 0;
+        /* Preparem la resposta abans de completar el viatge, per si falla la reserva. */
+        longitud_resposta = asprintf(&resposta, "OK&%d", recompensa);
+        strcpy(error, "MEMORY_ERROR");
+        valida = longitud_resposta > 0 && longitud_resposta <= MIDA_DADES;
+        if (valida == 1) {
+            valida = crearTrama(trama, TIPUS_CLAIM, FLAG_RESPOSTA_OK,
+                                (unsigned char *)resposta, longitud_resposta) == 0;
+        }
+        if (longitud_resposta >= 0) {
+            free(resposta);
+        }
     }
     if (valida == 1) {
         /* Revalidem i actualitzem junts: nomes un CLAIM pot cobrar aquest viatge. */
@@ -362,8 +406,6 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
             write(1, missatge, longitud);
             free(missatge);
         }
-        longitud = snprintf(dades, sizeof(dades), "OK&%d", recompensa);
-        crearTrama(trama, TIPUS_CLAIM, FLAG_RESPOSTA_OK, (unsigned char *)dades, longitud);
         return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
     }
     crearTrama(trama, TIPUS_CLAIM, FLAG_RESPOSTA_ERROR, (unsigned char *)error, strlen(error));

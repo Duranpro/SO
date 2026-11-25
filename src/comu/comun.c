@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 /***********************************************
  *
  * @Proposit: Implementa les operacions comunes dels tres processos.
@@ -250,7 +252,7 @@ int esperarRespostaFitxer(int fd_socket, unsigned char tipus, char *text, int fd
 int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
                  unsigned char flags_capcalera, unsigned char flags_dades, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA], dades[MIDA_DADES];
-    char capcalera[MIDA_DADES + 1], md5[33], *nom_fitxer = NULL;
+    char *capcalera = NULL, md5[33], *nom_fitxer = NULL;
     int mida_fitxer = 0, longitud = 0, fd_fitxer = -1;
     int bytes_llegits = 0, bytes_enviats = 0, resultat = 0;
 
@@ -270,12 +272,19 @@ int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
     if (nom_fitxer[0] == '\0' || strchr(nom_fitxer, '&') != NULL) {
         return -1;
     }
-    longitud = snprintf(capcalera, sizeof(capcalera), "%s&%s&%d&%s",
+    longitud = asprintf(&capcalera, "%s&%s&%d&%s",
                         tipus_transferencia, nom_fitxer, mida_fitxer, md5);
+    if (longitud < 0) {
+        return -1;
+    }
     if (longitud < 1 || longitud > MIDA_DADES ||
         crearTrama(trama, TIPUS_CAPCALERA_FITXER, flags_capcalera,
-                   (unsigned char *)capcalera, longitud) != 0 ||
-        enviarTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, trama) != 0 ||
+                   (unsigned char *)capcalera, longitud) != 0) {
+        free(capcalera);
+        return -1;
+    }
+    free(capcalera);
+    if (enviarTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, trama) != 0 ||
         esperarRespostaFitxer(fd_socket, TIPUS_READY_FITXER, "READY", fd_finalitzacio) != 0) {
         return -1;
     }
@@ -362,6 +371,7 @@ int prepararRecepcioFitxer(int fd_socket, unsigned char *trama, char *carpeta_de
                                  char *tipus_esperat, unsigned char flags_capcalera,
                                  char *ruta_desti, char *nom_fitxer,
                                  int *mida_fitxer, char *md5_esperat, int fd_finalitzacio) {
+    char *text_formatat = NULL;
     int longitud = 0, fd_fitxer = -1;
     if (trama[POSICIO_TIPUS] != TIPUS_CAPCALERA_FITXER) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
@@ -383,7 +393,13 @@ int prepararRecepcioFitxer(int fd_socket, unsigned char *trama, char *carpeta_de
         respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_DATA", fd_finalitzacio);
         return -1;
     }
-    longitud = snprintf(ruta_desti, MIDA_RUTA_FITXER, "%s/%s", carpeta_desti, nom_fitxer);
+    longitud = asprintf(&text_formatat, "%s/%s", carpeta_desti, nom_fitxer);
+    if (longitud >= 0) {
+        if (longitud < MIDA_RUTA_FITXER) {
+            strcpy(ruta_desti, text_formatat);
+        }
+        free(text_formatat);
+    }
     if (longitud < 1 || longitud >= MIDA_RUTA_FITXER) {
         respondreFitxer(fd_socket, TIPUS_READY_FITXER, FLAG_RESPOSTA_ERROR, "INVALID_PATH", fd_finalitzacio);
         return -1;

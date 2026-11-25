@@ -53,7 +53,39 @@ int enviarTrama(int fd, unsigned char *trama) {
     return write(fd, trama, MIDA_TRAMA) == MIDA_TRAMA ? 0 : -1;
 }
 
-int esperarSocket(int fd, int fd_finalitzacio, int escriure); //REVISAR
+/***********************************************
+ * @Finalitat: Espera el socket o l'avis de finalitzacio abans de fer E/S.
+ * @Parametres: in: fd = socket; fd_finalitzacio = pipe, o -1 per al client.
+ *              in: escriure = 1 per esperar escriptura, 0 per lectura.
+ * @Retorn: 1 si es pot operar; -1 si cal finalitzar o falla select.
+ ************************************************/
+int esperarSocket(int fd, int fd_finalitzacio, int escriure) {
+    fd_set lectura, escriptura;
+    int maxim = fd;
+
+    if (fd_finalitzacio < 0) {
+        return 1;
+    }
+    if (fd < 0 || fd >= FD_SETSIZE || fd_finalitzacio >= FD_SETSIZE) {
+        return -1;
+    }
+    if (fd_finalitzacio > maxim) {
+        maxim = fd_finalitzacio;
+    }
+    FD_ZERO(&lectura);
+    FD_ZERO(&escriptura);
+    FD_SET(fd_finalitzacio, &lectura);
+    if (escriure) {
+        FD_SET(fd, &escriptura);
+    } else {
+        FD_SET(fd, &lectura);
+    }
+    if (select(maxim + 1, &lectura, &escriptura, NULL, NULL) < 0 ||
+        FD_ISSET(fd_finalitzacio, &lectura)) {
+        return -1;
+    }
+    return 1;
+}
 
 /***********************************************
  *
@@ -102,40 +134,6 @@ int enviarNack(int fd, char *motiu) {
 }
 
 /***********************************************
- * @Finalitat: Espera el socket o l'avis de finalitzacio abans de fer E/S.
- * @Parametres: in: fd = socket; fd_finalitzacio = pipe, o -1 per al client.
- *              in: escriure = 1 per esperar escriptura, 0 per lectura.
- * @Retorn: 1 si es pot operar; -1 si cal finalitzar o falla select.
- ************************************************/
-int esperarSocket(int fd, int fd_finalitzacio, int escriure) {
-    fd_set lectura, escriptura;
-    int maxim = fd;
-
-    if (fd_finalitzacio < 0) {
-        return 1;
-    }
-    if (fd < 0 || fd >= FD_SETSIZE || fd_finalitzacio >= FD_SETSIZE) {
-        return -1;
-    }
-    if (fd_finalitzacio > maxim) {
-        maxim = fd_finalitzacio;
-    }
-    FD_ZERO(&lectura);
-    FD_ZERO(&escriptura);
-    FD_SET(fd_finalitzacio, &lectura);
-    if (escriure) {
-        FD_SET(fd, &escriptura);
-    } else {
-        FD_SET(fd, &lectura);
-    }
-    if (select(maxim + 1, &lectura, &escriptura, NULL, NULL) < 0 ||
-        FD_ISSET(fd_finalitzacio, &lectura)) {
-        return -1;
-    }
-    return 1;
-}
-
-/***********************************************
  * @Finalitat: Envia una trama sense ignorar l'avis de finalitzacio del servidor.
  * @Parametres: in: fd, fd_finalitzacio = socket i pipe (-1 sense pipe); trama = dades.
  * @Retorn: 0 si s'envia sencera; -1 amb error o finalitzacio.
@@ -150,7 +148,7 @@ int enviarTramaAmbFinalitzacio(int fd, int fd_finalitzacio, unsigned char *trama
 /***********************************************
  * @Finalitat: Rep una trama sense quedar pendent d'un client durant SIGINT.
  * @Parametres: in: fd, fd_finalitzacio = socket i pipe (-1 sense pipe); out: trama.
- * @Retorn: El resultat de rebreTrama, o -1 amb finalitzacio o error de select.
+ * @Retorn: 0 amb trama completa, 1 amb EOF i -1 amb error o finalitzacio.
  ************************************************/
 int rebreTramaAmbFinalitzacio(int fd, int fd_finalitzacio, unsigned char *trama) {
     int resultat = 0;
@@ -161,15 +159,6 @@ int rebreTramaAmbFinalitzacio(int fd, int fd_finalitzacio, unsigned char *trama)
         return -1;
     }
     return resultat;
-}
-
-/***********************************************
- * @Finalitat: Rep una trama al client, sense pipe de finalitzacio.
- * @Parametres: in: fd = socket; out: trama = buffer de 256 bytes.
- * @Retorn: 0 amb trama completa, 1 amb EOF i -1 amb error.
- ************************************************/
-int rebreTrama(int fd, unsigned char *trama) { //REVISAR
-    return rebreTramaAmbFinalitzacio(fd, -1, trama);
 }
 
 /***********************************************

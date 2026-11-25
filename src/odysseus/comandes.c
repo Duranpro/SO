@@ -212,7 +212,7 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
     crearTrama(trama, TIPUS_BUY_MAP, FLAG_PETICIO, (unsigned char *)"1", 1);
     resultat = enviarTrama(*fd_illa, trama);
     for (index = 1; index <= total && resultat == 0; index++) {
-        resultat = rebreTrama(*fd_illa, trama);
+        resultat = rebreTramaAmbFinalitzacio(*fd_illa, -1, trama);
         if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_BUY_MAP) {
             if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
                 enviarNack(*fd_illa, "INVALID_TYPE");
@@ -343,7 +343,7 @@ int sortirIlla(ConfiguracioOdisseu *configuracio, int *fd_illa) {
 
     crearTrama(trama, TIPUS_SORTIDA_ILLA, FLAG_PETICIO, NULL, 0);
     if (enviarTrama(*fd_illa, trama) == 0) {
-        resultat = rebreTrama(*fd_illa, trama);
+        resultat = rebreTramaAmbFinalitzacio(*fd_illa, -1, trama);
     }
     if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_SORTIDA_ILLA) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
@@ -409,7 +409,7 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
     crearTrama(trama, TIPUS_LIST_MARKET, FLAG_PETICIO, NULL, 0);
     resultat = enviarTrama(*fd_illa, trama);
     for (index = 1; index <= total && resultat == 0; index++) {
-        resultat = rebreTrama(*fd_illa, trama);
+        resultat = rebreTramaAmbFinalitzacio(*fd_illa, -1, trama);
         if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_LIST_MARKET) {
             if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
                 enviarNack(*fd_illa, "INVALID_TYPE");
@@ -534,7 +534,7 @@ int intercanviarAliments(int *fd_illa, int tipus, char *producte, int quantitat,
     }
     if (crearTrama(trama, tipus, FLAG_PETICIO, (unsigned char *)peticio, longitud) == 0 &&
         enviarTrama(*fd_illa, trama) == 0) {
-        resultat = rebreTrama(*fd_illa, trama);
+        resultat = rebreTramaAmbFinalitzacio(*fd_illa, -1, trama);
     }
     free(peticio);
     if (resultat == 0 && trama[POSICIO_TIPUS] != tipus) {
@@ -1023,7 +1023,7 @@ int connectarIthaca(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_i
         *fd_ithaca = connectarServidor(configuracio->ip_itaca,
                                        configuracio->port_itaca);
         if (*fd_ithaca >= 0 && enviarTrama(*fd_ithaca, trama) == 0) {
-            resultat = rebreTrama(*fd_ithaca, trama);
+            resultat = rebreTramaAmbFinalitzacio(*fd_ithaca, -1, trama);
         }
     }
     if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_CONNECT_ITHACA) {
@@ -1094,7 +1094,7 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
     crearTrama(trama, TIPUS_LIST_VOYAGES, FLAG_PETICIO, NULL, 0);
     if (enviarTrama(*fd_ithaca, trama) == 0) {
         for (index = 1; index <= total; index++) {
-            resultat = rebreTrama(*fd_ithaca, trama);
+            resultat = rebreTramaAmbFinalitzacio(*fd_ithaca, -1, trama);
             if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_LIST_VOYAGES) {
                 if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
                     enviarNack(*fd_ithaca, "INVALID_TYPE");
@@ -1225,7 +1225,7 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
     }
     if (crearTrama(trama, TIPUS_ACCEPT, FLAG_PETICIO, (unsigned char *)peticio, longitud) == 0 &&
         enviarTrama(*fd_ithaca, trama) == 0) {
-        resultat = rebreTrama(*fd_ithaca, trama);
+        resultat = rebreTramaAmbFinalitzacio(*fd_ithaca, -1, trama);
     }
     free(peticio);
     if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_ACCEPT) {
@@ -1337,7 +1337,7 @@ int desconnectarIthaca(int *fd_ithaca) {
 
     crearTrama(trama, TIPUS_DESCONNEXIO_ITHACA, FLAG_PETICIO, NULL, 0);
     if (enviarTrama(*fd_ithaca, trama) == 0) {
-        resultat = rebreTrama(*fd_ithaca, trama);
+        resultat = rebreTramaAmbFinalitzacio(*fd_ithaca, -1, trama);
     }
     if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_DESCONNEXIO_ITHACA) {
         if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
@@ -1489,7 +1489,7 @@ int esperarPortAmbAlarma(ConfiguracioOdisseu *configuracio, int *fd_illa, char *
             continue;
         }
         if (resultat > 0 && FD_ISSET(fd_espera, &descriptors)) {
-            resultat = rebreTrama(fd_espera, trama);
+            resultat = rebreTramaAmbFinalitzacio(fd_espera, -1, trama);
             if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_ARRIBADA_ILLA) {
                 if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
                     enviarNack(fd_espera, "INVALID_TYPE");
@@ -1627,7 +1627,7 @@ int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *d
     }
     *fd_illa = connectarServidor(desti->ip, desti->port);
     if (*fd_illa >= 0 && enviarTrama(*fd_illa, trama) == 0) {
-        resultat = rebreTrama(*fd_illa, trama);
+        resultat = rebreTramaAmbFinalitzacio(*fd_illa, -1, trama);
         if (resultat == 0 && trama[POSICIO_TIPUS] != TIPUS_ARRIBADA_ILLA) {
             if (trama[POSICIO_TIPUS] != TIPUS_NACK) {
                 enviarNack(*fd_illa, "INVALID_TYPE");
@@ -1834,7 +1834,7 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
     }
     escriureMissatge(missatge);
     free(missatge);
-    resultat = rebreTrama(*fd_illa, trama);
+    resultat = rebreTramaAmbFinalitzacio(*fd_illa, -1, trama);
     if (resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_CAPCALERA_FITXER) {
         /* El fitxer original es reempla�a: un error ja no garanteix un Object valid. */
         configuracio->fitxer_objecte[0] = '\0';
@@ -1846,7 +1846,7 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
             signat = 1;
             guardarEstatOdysseus(configuracio);
             escriureMissatge("Stamped object received.\n");
-            resultat = rebreTrama(*fd_illa, trama);
+            resultat = rebreTramaAmbFinalitzacio(*fd_illa, -1, trama);
         }
     }
     if (signat == 1 && resultat == 0 && trama[POSICIO_TIPUS] == TIPUS_DELIVER &&
@@ -1906,7 +1906,7 @@ int executarClaim(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int fd_illa
     if (resultat == 0 && enviarTrama(*fd_ithaca, trama) == 0 &&
         enviarFitxer(*fd_ithaca, ruta_objecte, "CLAIM", FLAG_PETICIO, FLAG_DADES_PETICIO, -1) == 0) {
         escriureMissatge("Object transferred correctly.\n");
-        resultat = rebreTrama(*fd_ithaca, trama);
+        resultat = rebreTramaAmbFinalitzacio(*fd_ithaca, -1, trama);
     } else {
         resultat = -1;
     }

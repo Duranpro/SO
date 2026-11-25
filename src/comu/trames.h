@@ -46,7 +46,6 @@
 
 int crearTrama(unsigned char *trama, unsigned char tipus, unsigned char flags, unsigned char *dades, int longitud);
 int enviarTrama(int fd, unsigned char *trama);
-int rebreTrama(int fd, unsigned char *trama);
 int enviarNack(int fd, char *motiu);
 
 int enviarTramaAmbFinalitzacio(int fd, int fd_finalitzacio, unsigned char *trama);

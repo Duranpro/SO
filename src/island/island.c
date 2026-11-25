@@ -10,7 +10,6 @@
  ************************************************/
 
 #include <signal.h>
-#include <limits.h>
 #include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -180,13 +179,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
             if (valida == 1 && dades[0] != '\0') {
                 format_valid = 1;
             }
-            for (i = 0; valida == 1 && quantitat_text[i] != '\0'; i++) {
-                if (quantitat > (INT_MAX - (quantitat_text[i] - '0')) / 10) {
-                    valida = 0;
-                } else {
-                    quantitat = quantitat * 10 + quantitat_text[i] - '0';
-                }
-            }
+            quantitat = atoi(quantitat_text);
             if (valida == 1 && quantitat > 0 && dades[0] != '\0' &&
                 strlen(dades) < MIDA_NOM_PRODUCTE && strcasecmp(dades, "MAP") != 0) {
                 error = "Producte desconegut";
@@ -198,8 +191,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
                 }
                 if (index >= 0) {
                     error = "Quantitat fora de rang";
-                    if (configuracio->productes[index].preu >= 0 &&
-                        (configuracio->productes[index].preu == 0 || quantitat <= INT_MAX / configuracio->productes[index].preu)) {
+                    if (configuracio->productes[index].preu >= 0) {
                         import = quantitat * configuracio->productes[index].preu;
                         nova_quantitat = configuracio->productes[index].quantitat;
                         if (tipus == TIPUS_BUY && nova_quantitat >= quantitat) {
@@ -207,7 +199,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
                             error = NULL;
                         } else if (tipus == TIPUS_BUY) {
                             error = "Stock insuficient";
-                        } else if (nova_quantitat <= INT_MAX - quantitat) {
+                        } else {
                             nova_quantitat += quantitat;
                             error = NULL;
                         }

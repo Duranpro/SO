@@ -11,7 +11,6 @@
 #define COMUN_H
 
 #include <stdlib.h>
-#include <limits.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>

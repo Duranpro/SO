@@ -13,13 +13,13 @@
 
 /***********************************************
  *
- * @Finalitat: Comprova si un text representa un enter no negatiu dins del rang d'int.
+ * @Finalitat: Comprova si un text no buit conte nomes digits decimals.
  * @Parametres: in: text = text que es vol comprovar.
  * @Retorn: Retorna 1 si es un numero i 0 altrament.
  *
  ************************************************/
 int esNumero(char *text) {
-    int i = 0, valor = 0;
+    int i = 0;
 
     if (text == NULL || text[0] == '\0') {
         return 0;
@@ -28,10 +28,6 @@ int esNumero(char *text) {
         if (text[i] < '0' || text[i] > '9') {
             return 0;
         }
-        if (valor > (INT_MAX - (text[i] - '0')) / 10) { //REVISAR INT_MAX
-            return 0;
-        }
-        valor = valor * 10 + text[i] - '0';
         i++;
     }
     return 1;

@@ -31,7 +31,7 @@ void gestionarSigint(int senyal __attribute__((unused))) {
     if (finalitzar_programa == 0) {
         finalitzar_programa = FINALITZACIO_CTRL_C;
     }
-    close(0); //REVISAR
+    close(0); 
     if (fd_ithaca >= 0) {
         close(fd_ithaca);
         fd_ithaca = -1;

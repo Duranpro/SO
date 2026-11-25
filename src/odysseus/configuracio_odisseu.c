@@ -489,7 +489,7 @@ int carregarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
     char nom[MIDA_NOM_PRODUCTE], sobrant = 0;
     Aliment *aliments = NULL;
     ConfiguracioOdisseu estat = {0};
-    int fd = -1, resultat = 0, diners = 0, nombre = 0, i = 0, total = 0, longitud = 0;
+    int fd = -1, resultat = 0, diners = 0, nombre = 0, i = 0, longitud = 0;
 
     longitud = asprintf(&ruta, "%s/state.dat", configuracio->ruta_carpeta);
     if (longitud < 0) {
@@ -523,11 +523,9 @@ int carregarEstatOdysseus(ConfiguracioOdisseu *configuracio) {
         if (read(fd, nom, sizeof(nom)) != sizeof(nom) ||
             read(fd, &aliments[i].quantitat, sizeof(int)) != sizeof(int) ||
             nom[0] == '\0' || nom[MIDA_NOM_PRODUCTE - 1] != '\0' ||
-            aliments[i].quantitat < 0 || aliments[i].quantitat > INT_MAX - total ||
+            aliments[i].quantitat < 0 ||
             copiarText(&aliments[i].nom, nom) != 0) {
             resultat = -1;
-        } else {
-            total += aliments[i].quantitat;
         }
     }
     estat.num_illes_conegudes = configuracio->num_illes_conegudes;

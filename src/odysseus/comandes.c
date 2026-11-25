@@ -632,9 +632,6 @@ int executarBuy(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte,
         return escriureMissatge("Error: diners insuficients.\n");
     }
     cost = quantitat * configuracio->mercat_actual[index_mercat].preu;
-    if (quantitat > INT_MAX - consumirProvisions(configuracio, 0)) {
-        return escriureMissatge("Error: massa provisions.\n");
-    }
     for (i = 0; i < configuracio->nombre_aliments; i++) {
         if (strcmp(configuracio->aliments[i].nom, producte) == 0) {
             index_aliment = i;
@@ -706,7 +703,7 @@ int executarSell(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte
         return escriureMissatge("Error: carrega insuficient.\n");
     }
     resultat = intercanviarAliments(fd_illa, TIPUS_SELL, producte, quantitat, &import);
-    if (resultat == 1 && import <= INT_MAX - configuracio->diners) {
+    if (resultat == 1) {
         configuracio->aliments[index].quantitat -= quantitat;
         configuracio->diners += import;
         guardarEstatOdysseus(configuracio);
@@ -738,9 +735,6 @@ int executarSell(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte
 int escriureMissatge(const char *text) {
     int longitud = 0, total_escrit = 0, bytes_escrits = 0;
 
-    if (strlen(text) > INT_MAX) {
-        return -1;
-    }
     longitud = (int)strlen(text);
 
     while (total_escrit < longitud) {
@@ -1154,9 +1148,6 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
             }
             if (index == 1) {
                 total = atoi(camps[1]);
-                if (total > INT_MAX / (int)sizeof(*viatges)) {
-                    break;
-                }
                 viatges = malloc(total * sizeof(*viatges));
                 if (viatges == NULL) {
                     break;
@@ -1927,25 +1918,23 @@ int executarClaim(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int fd_illa
         dades[longitud] = '\0';
         if ((int)strlen(dades) == longitud && strncmp(dades, "OK&", 3) == 0 && esNumero(dades + 3) == 1) {
             recompensa = atoi(dades + 3);
-            if (recompensa <= INT_MAX - configuracio->diners) {
-                longitud = asprintf(&missatge, "Glyph of %s verified.\nVoyage %d completed.\nReward received: %d gold.\n",
-                                    configuracio->viatge_actiu.illa_desti, configuracio->viatge_actiu.identificador, recompensa);
-                configuracio->diners += recompensa;
-                free(configuracio->viatge_actiu.nom_objecte);
-                free(configuracio->viatge_actiu.illa_desti);
-                free(configuracio->viatge_actiu.ruta_fitxer);
-                memset(&configuracio->viatge_actiu, 0, sizeof(configuracio->viatge_actiu));
-                configuracio->te_viatge = 0;
-                configuracio->entrega_completada = 0;
-                configuracio->fitxer_objecte[0] = '\0';
-                guardarEstatOdysseus(configuracio);
-                if (longitud < 0) {
-                    return -1;
-                }
-                resultat = escriureMissatge(missatge);
-                free(missatge);
-                return resultat;
+            longitud = asprintf(&missatge, "Glyph of %s verified.\nVoyage %d completed.\nReward received: %d gold.\n",
+                                configuracio->viatge_actiu.illa_desti, configuracio->viatge_actiu.identificador, recompensa);
+            configuracio->diners += recompensa;
+            free(configuracio->viatge_actiu.nom_objecte);
+            free(configuracio->viatge_actiu.illa_desti);
+            free(configuracio->viatge_actiu.ruta_fitxer);
+            memset(&configuracio->viatge_actiu, 0, sizeof(configuracio->viatge_actiu));
+            configuracio->te_viatge = 0;
+            configuracio->entrega_completada = 0;
+            configuracio->fitxer_objecte[0] = '\0';
+            guardarEstatOdysseus(configuracio);
+            if (longitud < 0) {
+                return -1;
             }
+            resultat = escriureMissatge(missatge);
+            free(missatge);
+            return resultat;
         }
     }
     close(*fd_ithaca);

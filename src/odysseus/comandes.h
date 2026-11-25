@@ -67,6 +67,7 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa);
 int executarClaim(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int fd_illa);
 int desconnectarIthaca(int *fd_ithaca);
 int consumirProvisions(ConfiguracioOdisseu *configuracio, int quantitat);
+void avisarRacio(int senyal);
 int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                 int *finalitzar_programa);
 int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *desti,

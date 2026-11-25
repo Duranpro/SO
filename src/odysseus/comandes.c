@@ -1573,15 +1573,8 @@ int esperarPortAmbAlarma(ConfiguracioOdisseu *configuracio, int *fd_illa, char *
  ************************************************/
 int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa, int *finalitzar_programa) {
     int avis_racio[2], fd_maxim = *fd_illa, resultat;
-    void (*gestor_anterior)(int); //REVISAR
 
     if (escriureMissatge("$ ") != 0 || pipe(avis_racio) < 0) {
-        return -1;
-    }
-    gestor_anterior = signal(SIGALRM, avisarRacio);
-    if (gestor_anterior == SIG_ERR) { //REVISAR
-        close(avis_racio[0]);
-        close(avis_racio[1]);
         return -1;
     }
     fd_avis_racio = avis_racio[1];
@@ -1594,7 +1587,6 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
                                      avis_racio[0], fd_maxim);
     alarm(0);
     fd_avis_racio = -1;
-    signal(SIGALRM, gestor_anterior);
     close(avis_racio[0]);
     close(avis_racio[1]);
     return resultat;

@@ -71,11 +71,6 @@ int gestionarBuyMap(int fd_navegant, unsigned char *peticio, char *nom, Configur
         return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_DATA");
     }
     if (peticio[POSICIO_FLAGS] != FLAG_PETICIO || peticio[POSICIO_LONGITUD] != 1 || peticio[POSICIO_DADES] != '1') {
-        /* REVISAR: error es un char* i rep directament un literal sense reserva.
-         * El professor ha demanat evitar-ho. Valorar un array de char amb strcpy
-         * o una copia dinamica amb alliberament. Revisar totes les assignacions
-         * literals a error d aquesta funcio i el seu us de NULL com a indicador.
-         */
         error = "Quantitat de mapa invalida";
         crearTrama(trama, TIPUS_BUY_MAP, FLAG_RESPOSTA_ERROR, (unsigned char *)error, strlen(error));
         return enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, trama);
@@ -172,14 +167,7 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
     if (longitud == 0 || longitud > MIDA_DADES) {
         return enviarNackAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, "INVALID_LENGTH");
     }
-    /* REVISAR: error es un char* i rep directament un literal sense reserva.
-     * El professor ha demanat evitar-ho. Valorar un array de char amb strcpy
-     * o una copia dinamica amb alliberament. Revisar totes les assignacions
-     * literals a error d aquesta funcio i el seu us de NULL com a indicador.
-     */
     error = "Peticio invalida";
-    /* REVISAR: la longitud ja ha estat validada amb retorn en cas d error.
-     * Aqui es poden treure longitud > 0 i longitud <= MIDA_DADES, mantenint FLAGS. */
     if (peticio[POSICIO_FLAGS] == FLAG_PETICIO && longitud > 0 && longitud <= MIDA_DADES) {
         memcpy(dades, peticio + POSICIO_DADES, longitud);
         dades[longitud] = '\0';
@@ -193,10 +181,6 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
             }
             quantitat = atoi(quantitat_text);
             if (valida == 1 && quantitat > 0 && dades[0] != '\0' &&
-                /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-                 * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-                 * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-                 */
                 strlen(dades) < MIDA_NOM_PRODUCTE && strcasecmp(dades, "MAP") != 0) {
                 error = "Producte desconegut";
                 pthread_mutex_lock(mutex_stock);
@@ -270,10 +254,6 @@ int gestionarCompraVenda(int fd_navegant, unsigned char *peticio, char *nom, Con
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
     /* Conservem l'error de l'operacio interrompuda pel senyal. */
-    /* REVISAR CLASSE: errno es conegut, pero guardar-lo i restaurar-lo al
-     * gestor no s ha trobat als exemples. Evita que write alteri l error
-     * del codi interromput; justificar aquest patro abans de simplificar-lo.
-     */
     int error_anterior = errno;
     char avis = 'F';
 

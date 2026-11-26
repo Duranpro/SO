@@ -55,10 +55,6 @@ int carregarConfiguracioItaca(char *nom_fitxer, ConfiguracioItaca *configuracio)
         if (linia == NULL) {
             resultat = -1;
         } else {
-            /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-             * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-             * la validacio de camps buits, nombre de camps i contingut.
-             */
             camp = strtok(linia, " ");
             if (copiarText(&configuracio->ip, camp) != 0) {
                 resultat = -1;
@@ -113,10 +109,6 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     viatge->md5_comprovant[0] = '\0';
     configuracio->nombre_viatges++;
 
-    /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-     * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-     * la validacio de camps buits, nombre de camps i contingut.
-     */
     camp = strtok(linia, " ");
     if (copiarText(&viatge->nom_objecte, camp) != 0) {
         return -1;

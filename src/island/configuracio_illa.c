@@ -57,10 +57,6 @@ int afegirRuta(char *linia, ConfiguracioIlla *configuracio) {
     ruta->port = 0;
     configuracio->nombre_rutes++;
 
-    /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-     * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-     * la validacio de camps buits, nombre de camps i contingut.
-     */
     camp = strtok(linia, " ");
     if (copiarText(&ruta->nom_illa, camp) != 0) {
         return -1;
@@ -117,10 +113,6 @@ int carregarConfiguracioIlla(char *nom_fitxer, ConfiguracioIlla *configuracio) {
         if (linia == NULL) {
             resultat = -1;
         } else {
-            /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-             * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-             * la validacio de camps buits, nombre de camps i contingut.
-             */
             camp = strtok(linia, " ");
             if (copiarText(&configuracio->ip, camp) != 0) {
                 resultat = -1;

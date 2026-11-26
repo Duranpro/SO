@@ -39,10 +39,6 @@ int buscarIllaConeguda(ConfiguracioOdisseu *configuracio, char *nom) {
     int i = 0;
 
     for (i = 0; i < configuracio->num_illes_conegudes; i++) {
-        /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-         * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-         * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-         */
         if (strcasecmp(configuracio->illes_conegudes[i].nom, nom) == 0) {
             return i;
         }
@@ -63,10 +59,6 @@ int afegirIllaConeguda(ConfiguracioOdisseu *configuracio, char *nom, char *ip, i
     int i = 0, index = -1, nom_valid = -1;
 
     for (i = 0; i < MAX_ILLES; i++) {
-        /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-         * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-         * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-         */
         if (strcasecmp(nom, noms_valids[i]) == 0) {
             nom_valid = i;
         }
@@ -98,10 +90,6 @@ void afegirConnexio(IllaConeguda *origen, IllaConeguda *desti) {
     int i = 0;
 
     for (i = 0; i < origen->num_connexions; i++) {
-        /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-         * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-         * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-         */
         if (strcasecmp(origen->connexions[i], desti->nom) == 0) {
             return;
         }
@@ -146,9 +134,6 @@ int mostrarStatus(ConfiguracioOdisseu *configuracio) {
     int i = 0, longitud = 0;
 
     for (i = 0; configuracio->nom[i] != '\0' && i < MIDA_NOM_ODYSSEUS - 1; i++) {
-        /* REVISAR CLASSE: toupper no s ha localitzat als exemples revisats.
-         * Threads/S2.c converteix les lletres amb rangs ASCII. Mantenir el mateix resultat.
-         */
         nom[i] = toupper((unsigned char)configuracio->nom[i]);
     }
     nom[i] = '\0';
@@ -276,10 +261,6 @@ int executarBuyMap(ConfiguracioOdisseu *configuracio, int *fd_illa, int quantita
             break;
         }
         nombre_camps = 0;
-        /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-         * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-         * la validacio de camps buits, nombre de camps i contingut.
-         */
         camp = strtok(dades, "&");
         while (camp != NULL && nombre_camps < 7) {
             camps[nombre_camps++] = camp;
@@ -342,10 +323,6 @@ int esConnexioDirecta(ConfiguracioOdisseu *configuracio, char *desti) {
 
     if (origen >= 0) {
         for (i = 0; i < configuracio->illes_conegudes[origen].num_connexions; i++) {
-            /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-             * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-             * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-             */
             if (strcasecmp(configuracio->illes_conegudes[origen].connexions[i], desti) == 0) {
                 return buscarIllaConeguda(configuracio, desti);
             }
@@ -475,10 +452,6 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
             break;
         }
         nombre_camps = 0;
-        /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-         * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-         * la validacio de camps buits, nombre de camps i contingut.
-         */
         camp = strtok(dades, "&");
         while (camp != NULL && nombre_camps < 5) {
             camps[nombre_camps++] = camp;
@@ -499,9 +472,6 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
                 }
             }
             for (i = 0; nom_illa[i] != '\0' && i < MIDA_DADES; i++) {
-                /* REVISAR CLASSE: toupper no s ha localitzat als exemples revisats.
-                 * Threads/S2.c converteix les lletres amb rangs ASCII. Mantenir el mateix resultat.
-                 */
                 nom[i] = toupper((unsigned char)nom_illa[i]);
             }
             nom[i] = '\0';
@@ -514,10 +484,6 @@ int executarListMarket(ConfiguracioOdisseu *configuracio, int *fd_illa, char *no
         }
         quantitat = atoi(camps[3]);
         preu = atoi(camps[4]);
-        /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-         * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-         * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-         */
         if (atoi(camps[1]) != total||(index == total && (strcmp(camps[2], "MAP") != 0 || quantitat != 1 || preu != 50)) ||(index < total && strcasecmp(camps[2], "MAP") == 0)) {
             enviarNack(*fd_illa, "INVALID_DATA");
             resultat = -1;
@@ -604,10 +570,6 @@ int intercanviarAliments(int *fd_illa, int tipus, char *producte, int quantitat,
             free(missatge);
             return 0;
         }
-        /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-         * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-         * la validacio de camps buits, nombre de camps i contingut.
-         */
         estat = strtok(dades, "&");
         nom = strtok(NULL, "&");
         kg = strtok(NULL, "&");
@@ -640,10 +602,6 @@ int executarBuy(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte,
     char *nom_nou = NULL, *missatge = NULL;
     int i = 0, index_mercat = -1, index_aliment = -1, cost = 0, import = 0, resultat = 0;
 
-    /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-     * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-     * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-     */
     if (strcasecmp(producte, "MAP") == 0) {
         return executarBuyMap(configuracio, fd_illa, quantitat);
     }
@@ -733,10 +691,6 @@ int executarSell(ConfiguracioOdisseu *configuracio, int *fd_illa, char *producte
     char *missatge = NULL;
     int i = 0, index = -1, import = 0, resultat = 0;
 
-   /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-    * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-    * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-    */
    if (*fd_illa < 0 || strcasecmp(producte, "MAP") == 0) {
         return escriureMissatge("Error: cal estar atracat i vendre un aliment.\n");
     }
@@ -805,10 +759,6 @@ int escriureMissatge(const char *text) {
 int analitzarConnexio(char *paraules[], int nombre_paraules, Comanda *comanda) {
     comanda->tipus = COMANDA_CONNECT;
     if (nombre_paraules == 2 &&
-        /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-         * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-         * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-         */
         strcasecmp(paraules[1], "ITHACA") == 0) {
         return 1;
     }
@@ -828,10 +778,6 @@ int analitzarLlista(char *paraules[], int nombre_paraules, Comanda *comanda) {
     if (nombre_paraules < 2) {
         return -1;
     }
-    /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-     * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-     * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-     */
     if (strcasecmp(paraules[1], "VOYAGES") == 0) {
         comanda->tipus = COMANDA_LIST_VOYAGES;
     } else if (strcasecmp(paraules[1], "MARKET") == 0) {
@@ -945,10 +891,6 @@ int analitzarComanda(char *linia, Comanda *comanda) {
     comanda->argument = NULL;
     comanda->valor = 0;
 
-    /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-     * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-     * la validacio de camps buits, nombre de camps i contingut.
-     */
     paraula = strtok(linia, " ");
     while (paraula != NULL && nombre_paraules < MAX_PARAULES) {
         paraules[nombre_paraules] = paraula;
@@ -959,10 +901,6 @@ int analitzarComanda(char *linia, Comanda *comanda) {
     if (nombre_paraules == 0) {
         return -1;
     }
-    /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-     * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-     * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-     */
     if (strcasecmp(paraules[0], "CONNECT") == 0) {
         return analitzarConnexio(paraules, nombre_paraules, comanda);
     }
@@ -1196,10 +1134,6 @@ int executarListVoyages(ConfiguracioOdisseu *configuracio, int *fd_ithaca) {
             if (index == 1 && strcmp(dades, "0") == 0) {
                 return escriureMissatge("--- AVAILABLE VOYAGES ---\n");
             }
-            /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-             * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-             * la validacio de camps buits, nombre de camps i contingut.
-             */
             camp = strtok(dades, "&");
             for (i = 0; i < 6 && camp != NULL; i++) {
                 camps[i] = camp;
@@ -1321,14 +1255,8 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
             free(missatge);
             return resultat;
         }
-        /* REVISAR: els FLAGS invalids ja s han rebutjat i ERROR ja ha retornat.
-         * Aqui sobra repetir FLAG_RESPOSTA_OK; conservar els controls del contingut. */
         if (trama[POSICIO_FLAGS] == FLAG_RESPOSTA_OK && (int)strlen(dades) == longitud &&
             dades[0] != '&' && dades[longitud - 1] != '&' && teSeparadorsSeguits(dades) == 0) {
-            /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
-             * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
-             * la validacio de camps buits, nombre de camps i contingut.
-             */
             camp = strtok(dades, "&");
             for (i = 0; i < 5 && camp != NULL; i++) {
                 camps[i] = camp;
@@ -1489,10 +1417,6 @@ int fd_avis_racio = -1;
  ************************************************/
 void avisarRacio(int senyal __attribute__((unused))) {
     char avis = 1;
-    /* REVISAR CLASSE: errno es conegut, pero guardar-lo i restaurar-lo al
-     * gestor no s ha trobat als exemples. Evita que write alteri l error
-     * del codi interromput; justificar aquest patro abans de simplificar-lo.
-     */
     int error_anterior = errno;
 
     if (fd_avis_racio >= 0) {
@@ -1749,10 +1673,6 @@ int arribarIlla(ConfiguracioOdisseu *configuracio, int *fd_illa, IllaConeguda *d
                         return resultat;
                     }
                     if (*fd_illa >= 0 && *finalitzar_programa == 0 && configuracio->te_viatge == 1 &&
-                        /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-                         * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-                         * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-                         */
                         strcasecmp(configuracio->ubicacio_actual, configuracio->viatge_actiu.illa_desti) == 0) {
                         /* Arribar no lliura l'objecte ni canvia el viatge o els diners. */
                         return 1;
@@ -1797,10 +1717,6 @@ int executarSail(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int *fd_illa
         return escriureMissatge("Error: no es pot navegar amb una missio activa sense l'objecte rebut.\n");
     }
     if (*fd_ithaca < 0 && *fd_illa < 0 &&
-        /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-         * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-         * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-         */
         strcasecmp(configuracio->ubicacio_actual, desti) == 0 &&
         buscarIllaConeguda(configuracio, desti) >= 0) {
         index_desti = buscarIllaConeguda(configuracio, desti);
@@ -1866,10 +1782,6 @@ int executarDeliver(ConfiguracioOdisseu *configuracio, int *fd_illa) {
         return escriureMissatge("Error: cal un viatge actiu amb l'Object rebut.\n");
     }
     /* Durant WAIT el terminal nomes executa MAP i STATUS a esperarPort. */
-    /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-     * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-     * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-     */
     if (*fd_illa < 0 || strcasecmp(configuracio->ubicacio_actual, configuracio->viatge_actiu.illa_desti) != 0) {
         return escriureMissatge("Error: cal estar atracat a l'illa de desti.\n");
     }
@@ -1962,10 +1874,6 @@ int executarClaim(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int fd_illa
     char dades[MIDA_DADES + 1], *ruta_objecte = NULL, *missatge = NULL;
     int longitud = 0, resultat = -1, recompensa = 0;
 
-    /* REVISAR CLASSE: strcasecmp no s ha localitzat als materials revisats.
-     * Alternativa: convertir els caracters amb un bucle ASCII, com a Threads/S2.c,
-     * i comparar amb strcmp. Aplicar el mateix criteri a les altres crides de la funcio.
-     */
     if (*fd_ithaca < 0 || fd_illa >= 0 || strcasecmp(configuracio->ubicacio_actual, "Ithaca") != 0 ||
         configuracio->te_viatge == 0 || configuracio->fitxer_objecte[0] == '\0' || configuracio->entrega_completada != 1) {
         return escriureMissatge("Error: cal tornar a Ithaca amb un DELIVER complet.\n");

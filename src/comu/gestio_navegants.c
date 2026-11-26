@@ -89,12 +89,6 @@ void recollirNavegants(RegistreNavegants *registre, int finalitzar) {
 
     pthread_mutex_lock(&registre->mutex);
     if (finalitzar) {
-        /* REVISAR CLASSE: pipe i select son recursos vistos, pero usar l EOF
-         * per avisar tots els fils alhora no s ha trobat als exemples.
-         * Tanquem l escriptura i cada select detecta EOF sense consumir dades.
-         * Si es simplifica, cal conservar el despertar de tots els fils abans
-         * del join; un unic byte consumit per un fil no avisa els altres.
-         */
         close(registre->finalitzacio[1]);
     }
     while (i < registre->nombre) {

@@ -42,10 +42,6 @@ typedef struct {
  *
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
-    /* REVISAR CLASSE: errno es conegut, pero guardar-lo i restaurar-lo al
-     * gestor no s ha trobat als exemples. Evita que write alteri l error
-     * del codi interromput; justificar aquest patro abans de simplificar-lo.
-     */
     int error_anterior = errno;
     char avis = 'F';
 

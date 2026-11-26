@@ -108,6 +108,8 @@ int calcularMd5(char *ruta_fitxer, char *md5) {
     int pid = -1, bytes_llegits = 0, estat = 0;
     char buffer[256];
 
+    /* REVISAR: els cridadors actuals passen un buffer md5 reservat de 33 bytes.
+     * Es podria treure nomes md5 == NULL si es conserva aquest contracte. */
     if (ruta_fitxer == NULL || md5 == NULL || ruta_fitxer[0] == '\0') {
         return -1;
     }
@@ -259,6 +261,10 @@ int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
     if (mida_fitxer <= 0 || calcularMd5(ruta_fitxer, md5) != 0) {
         return -1;
     }
+    /* REVISAR CLASSE: strrchr no s ha localitzat als materials revisats.
+     * Alternativa: recorrer la ruta i guardar la posicio de l ultim /,
+     * conservant el cas de ruta sense /. Aplicar-ho a les altres crides equivalents.
+     */
     nom_fitxer = strrchr(ruta_fitxer, '/');
     if (nom_fitxer == NULL) {
         nom_fitxer = ruta_fitxer;
@@ -473,6 +479,9 @@ int rebreFitxerDesDeCapcalera(int fd_socket, unsigned char *trama_capcalera,
     char md5_esperat[33], md5_rebut[33];
     int fd_fitxer = -1, mida_fitxer = 0, bytes_rebuts = 0;
 
+    /* REVISAR: rebreFitxer ja valida els arguments comuns abans de delegar aqui.
+     * Tambe hi ha crides directes a aquesta funcio: revisar aquests cridadors
+     * abans de centralitzar controls; trama_capcalera es un argument propi. */
     if (fd_socket < 0 || trama_capcalera == NULL || carpeta_desti == NULL || carpeta_desti[0] == '\0' ||
         tipus_esperat == NULL || nom_fitxer_rebut == NULL) {
         return -1;
@@ -518,6 +527,9 @@ int rebreFitxer(int fd_socket, char *carpeta_desti, char *tipus_esperat,
                 char *nom_fitxer_rebut, int fd_finalitzacio) {
     unsigned char trama[MIDA_TRAMA];
 
+    /* REVISAR: aquests arguments es tornen a validar a rebreFitxerDesDeCapcalera.
+     * Es poden reorganitzar els controls si cada punt d entrada conserva un
+     * contracte clar; no confondre aquests controls amb validar les trames rebudes. */
     if (fd_socket < 0 || carpeta_desti == NULL || carpeta_desti[0] == '\0' ||
         tipus_esperat == NULL || nom_fitxer_rebut == NULL) {
         return -1;

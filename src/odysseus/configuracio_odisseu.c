@@ -38,6 +38,10 @@ int carregarLocalitzacio(int fd, ConfiguracioOdisseu *configuracio) {
     if (linia == NULL) {
         return -1;
     }
+    /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
+     * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
+     * la validacio de camps buits, nombre de camps i contingut.
+     */
     camp = strtok(linia, " ");
     if (copiarText(&configuracio->nom, camp) != 0) {
         free(linia);
@@ -124,6 +128,10 @@ int carregarAliments(int fd, ConfiguracioOdisseu *configuracio) {
         if (linia == NULL) {
             return -1;
         }
+        /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
+         * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
+         * la validacio de camps buits, nombre de camps i contingut.
+         */
         camp = strtok(linia, " ");
         if (copiarText(&configuracio->aliments[i].nom, camp) != 0) {
             free(linia);

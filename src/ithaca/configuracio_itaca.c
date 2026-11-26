@@ -55,6 +55,10 @@ int carregarConfiguracioItaca(char *nom_fitxer, ConfiguracioItaca *configuracio)
         if (linia == NULL) {
             resultat = -1;
         } else {
+            /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
+             * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
+             * la validacio de camps buits, nombre de camps i contingut.
+             */
             camp = strtok(linia, " ");
             if (copiarText(&configuracio->ip, camp) != 0) {
                 resultat = -1;
@@ -109,6 +113,10 @@ int afegirViatge(char *linia, ConfiguracioItaca *configuracio) {
     viatge->md5_comprovant[0] = '\0';
     configuracio->nombre_viatges++;
 
+    /* REVISAR CLASSE: no s ha trobat strtok, pero S0.c (3).txt usa strtok_r.
+     * Si es canvia, cal un punter d estat per cada tokenitzacio i conservar
+     * la validacio de camps buits, nombre de camps i contingut.
+     */
     camp = strtok(linia, " ");
     if (copiarText(&viatge->nom_objecte, camp) != 0) {
         return -1;
@@ -183,6 +191,10 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
     /* La recepcio no pot escriure damunt dels originals de voyages.dat. */
     for (i = 0; i < configuracio->nombre_viatges; i++) {
         origen = configuracio->viatges[i].ruta_fitxer;
+        /* REVISAR CLASSE: strrchr no s ha localitzat als materials revisats.
+         * Alternativa: recorrer la ruta i guardar la posicio de l ultim /,
+         * conservant el cas de ruta sense /. Aplicar-ho a les altres crides equivalents.
+         */
         nom_fitxer = strrchr(origen, '/'); 
         if (nom_fitxer == NULL) {
             nom_fitxer = origen;
@@ -194,6 +206,8 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
         if (longitud < 0) {
             return -1;
         }
+        /* REVISAR: asprintf ja no ha fallat i el format sempre inclou /.
+         * longitud <= 0 es redundant; conservar el limit MIDA_RUTA_FITXER. */
         if (longitud <= 0 || longitud >= MIDA_RUTA_FITXER) {
             free(ruta_comprovant);
             return -1;
@@ -224,6 +238,8 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
         if (longitud < 0) {
             return -1;
         }
+        /* REVISAR: mateix criteri de longitud que al bucle anterior. Treure nomes
+         * longitud <= 0; conservar el limit de ruta i els errors de SPHRAGIS i MD5. */
         if (longitud <= 0 || longitud >= MIDA_RUTA_FITXER ||
             SPHRAGIS_sign_with_glyph(configuracio->viatges[i].illa_desti,
                                      origen, ruta_comprovant) != SPHRAGIS_OK ||

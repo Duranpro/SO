@@ -42,6 +42,10 @@ typedef struct {
  *
  ************************************************/
 void gestionarSigint(int senyal __attribute__((unused))) {
+    /* REVISAR CLASSE: errno es conegut, pero guardar-lo i restaurar-lo al
+     * gestor no s ha trobat als exemples. Evita que write alteri l error
+     * del codi interromput; justificar aquest patro abans de simplificar-lo.
+     */
     int error_anterior = errno;
     char avis = 'F';
 
@@ -351,6 +355,10 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
     }
     if (valida == 1) {
         write(1, ">>> Object received correctly.\n", strlen(">>> Object received correctly.\n"));
+        /* REVISAR CLASSE: strrchr no s ha localitzat als materials revisats.
+         * Alternativa: recorrer la ruta i guardar la posicio de l ultim /,
+         * conservant el cas de ruta sense /. Aplicar-ho a les altres crides equivalents.
+         */
         esperat = strrchr(fitxer_viatge, '/');
         if (esperat == NULL) {
             esperat = fitxer_viatge;

@@ -351,10 +351,6 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
     }
     if (valida == 1) {
         write(1, ">>> Object received correctly.\n", strlen(">>> Object received correctly.\n"));
-        /* REVISAR CLASSE: strrchr no s ha localitzat als materials revisats.
-         * Alternativa: recorrer la ruta i guardar la posicio de l ultim /,
-         * conservant el cas de ruta sense /. Aplicar-ho a les altres crides equivalents.
-         */
         esperat = strrchr(fitxer_viatge, '/');
         if (esperat == NULL) {
             esperat = fitxer_viatge;

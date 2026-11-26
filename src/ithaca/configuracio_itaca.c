@@ -183,10 +183,7 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
     /* La recepcio no pot escriure damunt dels originals de voyages.dat. */
     for (i = 0; i < configuracio->nombre_viatges; i++) {
         origen = configuracio->viatges[i].ruta_fitxer;
-        /* REVISAR CLASSE: strrchr no s ha localitzat als materials revisats.
-         * Alternativa: recorrer la ruta i guardar la posicio de l ultim /,
-         * conservant el cas de ruta sense /. Aplicar-ho a les altres crides equivalents.
-         */
+        
         nom_fitxer = strrchr(origen, '/'); 
         if (nom_fitxer == NULL) {
             nom_fitxer = origen;

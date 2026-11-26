@@ -108,9 +108,7 @@ int calcularMd5(char *ruta_fitxer, char *md5) {
     int pid = -1, bytes_llegits = 0, estat = 0;
     char buffer[256];
 
-    /* REVISAR: els cridadors actuals passen un buffer md5 reservat de 33 bytes.
-     * Es podria treure nomes md5 == NULL si es conserva aquest contracte. */
-    if (ruta_fitxer == NULL || md5 == NULL || ruta_fitxer[0] == '\0') {
+    if (ruta_fitxer == NULL || ruta_fitxer[0] == '\0') {
         return -1;
     }
     md5[0] = '\0';
@@ -261,10 +259,7 @@ int enviarFitxer(int fd_socket, char *ruta_fitxer, char *tipus_transferencia,
     if (mida_fitxer <= 0 || calcularMd5(ruta_fitxer, md5) != 0) {
         return -1;
     }
-    /* REVISAR CLASSE: strrchr no s ha localitzat als materials revisats.
-     * Alternativa: recorrer la ruta i guardar la posicio de l ultim /,
-     * conservant el cas de ruta sense /. Aplicar-ho a les altres crides equivalents.
-     */
+   
     nom_fitxer = strrchr(ruta_fitxer, '/');
     if (nom_fitxer == NULL) {
         nom_fitxer = ruta_fitxer;

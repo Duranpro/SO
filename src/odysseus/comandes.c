@@ -1577,11 +1577,6 @@ int esperarPort(ConfiguracioOdisseu *configuracio, int *fd_illa, char *nom_illa,
     if (escriureMissatge("$ ") != 0 || pipe(avis_racio) < 0) {
         return -1;
     }
-    /* REVISAR CLASSE: alarm, signal, pipe i select son recursos vistos.
-     * La combinacio SIGALRM -> byte a la pipe -> select -> consum es propia.
-     * Explicar aquest flux: MAP/STATUS no han de reiniciar els cinc segons,
-     * i en sortir cal cancel.lar l alarma i tancar la pipe.
-     */
     fd_avis_racio = avis_racio[1];
     if (avis_racio[0] > fd_maxim) {
         fd_maxim = avis_racio[0];

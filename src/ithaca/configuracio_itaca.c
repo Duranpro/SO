@@ -195,9 +195,7 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
         if (longitud < 0) {
             return -1;
         }
-        /* REVISAR: asprintf ja no ha fallat i el format sempre inclou /.
-         * longitud <= 0 es redundant; conservar el limit MIDA_RUTA_FITXER. */
-        if (longitud <= 0 || longitud >= MIDA_RUTA_FITXER) {
+        if (longitud >= MIDA_RUTA_FITXER) {
             free(ruta_comprovant);
             return -1;
         }
@@ -227,9 +225,8 @@ int prepararComprovants(ConfiguracioItaca *configuracio) {
         if (longitud < 0) {
             return -1;
         }
-        /* REVISAR: mateix criteri de longitud que al bucle anterior. Treure nomes
-         * longitud <= 0; conservar el limit de ruta i els errors de SPHRAGIS i MD5. */
-        if (longitud <= 0 || longitud >= MIDA_RUTA_FITXER ||
+        
+        if (longitud >= MIDA_RUTA_FITXER ||
             SPHRAGIS_sign_with_glyph(configuracio->viatges[i].illa_desti,
                                      origen, ruta_comprovant) != SPHRAGIS_OK ||
             calcularMd5(ruta_comprovant, configuracio->viatges[i].md5_comprovant) != 0) {

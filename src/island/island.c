@@ -456,7 +456,7 @@ int gestionarDeliver(int fd_navegant, unsigned char *peticio, char *nom,
         write(1, missatge, longitud);
         free(missatge);
     }
-    if (rebreFitxer(fd_navegant, configuracio->ruta_carpeta, "DELIVERY",
+    if (rebreFitxerDesDeCapcalera(fd_navegant, NULL, configuracio->ruta_carpeta, "DELIVERY",
                     FLAG_PETICIO, FLAG_DADES_PETICIO, nom_fitxer, fd_finalitzacio) != 0) {
         crearTrama(resposta, TIPUS_DELIVER, FLAG_RESPOSTA_ERROR, (unsigned char *)"DELIVERY_ERROR", 14);
         enviarTramaAmbFinalitzacio(fd_navegant, fd_lectura_finalitzacio, resposta);

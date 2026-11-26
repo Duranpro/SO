@@ -346,7 +346,7 @@ int gestionarClaim(int fd_navegant, unsigned char *peticio, ConfiguracioItaca *c
             free(missatge);
         }
         strcpy(error, "TRANSFER_ERROR");
-        valida = rebreFitxer(fd_navegant, configuracio->ruta_carpeta, "CLAIM",
+        valida = rebreFitxerDesDeCapcalera(fd_navegant, NULL, configuracio->ruta_carpeta, "CLAIM",
                               FLAG_PETICIO, FLAG_DADES_PETICIO, nom_fitxer, fd_finalitzacio) == 0;
     }
     if (valida == 1) {

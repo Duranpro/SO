@@ -458,9 +458,9 @@ int rebreDadesFitxer(int fd_socket, int fd_fitxer, int mida_fitxer,
 }
 
 /***********************************************
- * @Finalitat: Continua des d una capcalera rebuda i verifica mida i MD5.
+ * @Finalitat: Rep el fitxer des de la capcalera i verifica mida i MD5.
  * @Parametres: in: fd_socket = connexio del cridador; carpeta_desti = desti existent.
- *              in: trama_capcalera = HEADER rebut, sense tornar-lo a llegir.
+ *              in: trama_capcalera = HEADER rebut, o NULL si encara cal llegir-lo.
  *              in: tipus_esperat, flags_capcalera, flags_dades = valors de l'Annex II.
  *              out: nom_fitxer_rebut = buffer del cridador de MIDA_DADES + 1 bytes.
  * @Retorn: 0 amb recepcio correcta i -1 amb error. El cridador tanca la connexio
@@ -470,18 +470,22 @@ int rebreFitxerDesDeCapcalera(int fd_socket, unsigned char *trama_capcalera,
                               char *carpeta_desti, char *tipus_esperat,
                               unsigned char flags_capcalera, unsigned char flags_dades,
                               char *nom_fitxer_rebut, int fd_finalitzacio) {
+    unsigned char capcalera[MIDA_TRAMA];
     char ruta_desti[MIDA_RUTA_FITXER], nom_fitxer[MIDA_DADES + 1];
     char md5_esperat[33], md5_rebut[33];
     int fd_fitxer = -1, mida_fitxer = 0, bytes_rebuts = 0;
 
-    /* REVISAR: rebreFitxer ja valida els arguments comuns abans de delegar aqui.
-     * Tambe hi ha crides directes a aquesta funcio: revisar aquests cridadors
-     * abans de centralitzar controls; trama_capcalera es un argument propi. */
-    if (fd_socket < 0 || trama_capcalera == NULL || carpeta_desti == NULL || carpeta_desti[0] == '\0' ||
+    if (fd_socket < 0 || carpeta_desti == NULL || carpeta_desti[0] == '\0' ||
         tipus_esperat == NULL || nom_fitxer_rebut == NULL) {
         return -1;
     }
     nom_fitxer_rebut[0] = '\0';
+    if (trama_capcalera == NULL) {
+        if (rebreTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, capcalera) != 0) {
+            return -1;
+        }
+        trama_capcalera = capcalera;
+    }
     fd_fitxer = prepararRecepcioFitxer(fd_socket, trama_capcalera, carpeta_desti, tipus_esperat,
                                       flags_capcalera, ruta_desti, nom_fitxer,
                                       &mida_fitxer, md5_esperat, fd_finalitzacio);
@@ -508,31 +512,4 @@ int rebreFitxerDesDeCapcalera(int fd_socket, unsigned char *trama_capcalera,
     }
     strcpy(nom_fitxer_rebut, nom_fitxer);
     return 0;
-}
-
-/***********************************************
- * @Finalitat: Rep la capcalera i delega la recepcio completa del fitxer.
- * @Parametres: in: fd_socket, carpeta_desti, tipus_esperat = connexio i desti.
- *              in: flags_capcalera, flags_dades = FLAGS del protocol.
- *              out: nom_fitxer_rebut = buffer de MIDA_DADES + 1 bytes.
- * @Retorn: 0 amb mida, MD5 i ACK correctes; -1 amb error.
- ************************************************/
-int rebreFitxer(int fd_socket, char *carpeta_desti, char *tipus_esperat,
-                unsigned char flags_capcalera, unsigned char flags_dades,
-                char *nom_fitxer_rebut, int fd_finalitzacio) {
-    unsigned char trama[MIDA_TRAMA];
-
-    /* REVISAR: aquests arguments es tornen a validar a rebreFitxerDesDeCapcalera.
-     * Es poden reorganitzar els controls si cada punt d entrada conserva un
-     * contracte clar; no confondre aquests controls amb validar les trames rebudes. */
-    if (fd_socket < 0 || carpeta_desti == NULL || carpeta_desti[0] == '\0' ||
-        tipus_esperat == NULL || nom_fitxer_rebut == NULL) {
-        return -1;
-    }
-    nom_fitxer_rebut[0] = '\0';
-    if (rebreTramaAmbFinalitzacio(fd_socket, fd_finalitzacio, trama) != 0) {
-        return -1;
-    }
-    return rebreFitxerDesDeCapcalera(fd_socket, trama, carpeta_desti, tipus_esperat,
-                                     flags_capcalera, flags_dades, nom_fitxer_rebut, fd_finalitzacio);
 }

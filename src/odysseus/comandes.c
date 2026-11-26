@@ -1286,7 +1286,7 @@ int executarAccept(ConfiguracioOdisseu *configuracio, int *fd_ithaca, int identi
                         return resultat;
                     }
                     /* El receptor nomes desa el nom despres de validar mida, MD5 i ACK. */
-                    if (rebreFitxer(*fd_ithaca, configuracio->ruta_carpeta, "OBJECT",
+                    if (rebreFitxerDesDeCapcalera(*fd_ithaca, NULL, configuracio->ruta_carpeta, "OBJECT",
                                     FLAG_RESPOSTA_OK, FLAG_DADES_RESPOSTA,
                                     configuracio->fitxer_objecte, -1) != 0) {
                         close(*fd_ithaca);
